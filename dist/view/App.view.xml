@@ -1,0 +1,3 @@
+<mvc:View controllerName="stellar.trezor-workaround.controller.App" xmlns="sap.m" xmlns:f="sap.f" xmlns:mvc="sap.ui.core.mvc" xmlns:c="sap.ui.core" displayBlock="true">
+		<App id="app" />
+</mvc:View>

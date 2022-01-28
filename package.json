@@ -1,0 +1,20 @@
+{
+  "name": "trezor-workaround",
+  "version": "1.0.0",
+  "description": "Allows Trezor owners to claim their claimable balances",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinamogit/trezor-workaround.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vinamogit/trezor-workaround/issues"
+  },
+  "homepage": "https://github.com/vinamogit/trezor-workaround#readme"
+}

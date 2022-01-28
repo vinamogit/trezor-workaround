@@ -1,0 +1,11 @@
+specVersion: '2.6'
+metadata:
+  name: trezor-workaround
+type: application
+framework:
+  name: SAPUI5
+  version: "1.98.0"
+  libraries:
+    - name: sap.f
+    - name: sap.m
+    - name: sap.ui.core
