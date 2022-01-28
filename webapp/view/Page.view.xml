@@ -1,17 +1,44 @@
 <mvc:View controllerName="stellar.trezor-workaround.controller.Page" xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:c="sap.ui.core" displayBlock="false">
-        <Page title="Trezor">
+    <Page title="Workaround to claim claimable balances with a Trezor wallet (beta)">
 
-            <Input maxLength="56" id="publicKey" width="35em" />
-            <Button text="Load" icon="sap-icon://key" press="loadAccount" />
-            <List id="claimableOverview" includeItemInSelection="true" 
-            selectionChange="selectionChangeClaimable" mode="SingleSelect" class="sapUiSizeCompact" items="{ path: 'claimables' }" 
-                headerText="Claimable balances ">
-                <items>
-                    <StandardListItem  iconDensityAware="false"  
-                    title="{ path: 'asset' } {amount}" 
-                    info="{predicate/status}" 
-                    icon="{ path: 'icon'}"></StandardListItem>
-                </items>
+        <Panel id="input">
+            <VBox>
+                <HBox>
+
+                    <Input maxLength="56" id="publicKey" width="35em" submit="loadAccount" placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"/>
+                    <Button text="Load" icon="sap-icon://key" press="loadAccount" />
+                </HBox>
+                <List id="listClaimables" includeItemInSelection="true" selectionChange="selectionChangeClaimable" mode="SingleSelect" class="sapUiSizeCompact" items="{ path: '/claimables' }" headerText="Claimable balances ">
+                    <items>
+                        <StandardListItem iconDensityAware="false" title="{amount}" description="{ path: 'asset' } " info="{predicate/status} { path: 'predicate', formatter: '.formatPredicate'}" icon="{ path: 'icon'}"></StandardListItem>
+                    </items>
                 </List>
-        </Page>
+                <Button text="Generate XDR" icon="sap-icon://feeder-arrow" press="generate" id="generate" />
+
+
+            </VBox>
+        </Panel>
+        <Panel id="output" visible="false">
+            <Panel headerText="Pre-Auth XDR">
+
+                <VBox>
+                    <Label text="" />
+                    <TextArea id="xdrPreAuth" value="" rows="8" width="36em" />
+
+                    <Text text="You need to sign this transaction then submit it to the network" />
+                    <Link href="https://laboratory.stellar.org/#txsigner?network=public" target="_blank" text="Sign in Stellar Lab" />
+                </VBox>
+            </Panel>
+            <Panel headerText="Claim Claimable Balance XDR">
+
+                <VBox>
+                    <Label text="" />
+                    <TextArea id="xdrClaim" value="" rows="8" width="36em" />
+                    <Text text="If the Pre-Auth transaction has been submited successfully, you can now sumbit this transaction to claim the balance." />
+                    <Link href="https://laboratory.stellar.org/#txsubmitter?network=public" target="_blank" text="Submit in Stellar Lab" />
+                </VBox>
+            </Panel>
+
+        </Panel>
+    </Page>
 </mvc:View>
