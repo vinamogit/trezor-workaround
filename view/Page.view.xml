@@ -8,7 +8,7 @@
                     <Input maxLength="56" id="publicKey" width="35em" submit="loadAccount" placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"/>
                     <Button text="Load" icon="sap-icon://key" press="loadAccount" />
                 </HBox>
-                <List id="listClaimables" includeItemInSelection="true" selectionChange="selectionChangeClaimable" mode="SingleSelect" class="sapUiSizeCompact" items="{ path: '/claimables' }" headerText="Claimable balances ">
+                <List id="listClaimables" includeItemInSelection="true" selectionChange="selectionChangeClaimable" mode="MultiSelect" class="sapUiSizeCompact" items="{ path: '/claimables' }" headerText="Claimable balances ">
                     <items>
                         <StandardListItem iconDensityAware="false" title="{amount}" description="{ path: 'asset' } " info="{predicate/status} { path: 'predicate', formatter: '.formatPredicate'}" icon="{ path: 'icon'}"></StandardListItem>
                     </items>
