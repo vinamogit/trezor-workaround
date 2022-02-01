@@ -85,68 +85,44 @@ sap.ui.define([
 		},
 
 		generate: async function () {
+			var items = this.getView().byId("listClaimables").getItems();
+			var selectedItems = items.filter(item => item.getSelected());
+			if (selectedItems.length == 0)
+				return;
 
 			var publicKey = this.getView().byId("publicKey").getValue();
-			var items = this.getView().byId("listClaimables").getItems();
-			var claimId = { asset: undefined, id: undefined };
-			for (var item of items) {
-				if (item.getSelected()) {
-					var ctx = item.getBindingContext();
-					claimId.asset = ctx.getProperty("asset");
-					claimId.id = ctx.getProperty("id");
-				}
-			}
 
-			console.log(claimId)
+			var claimIds = selectedItems.map(item => {
+				var ctx = item.getBindingContext();
+				var claimId = {
+					asset: ctx.getProperty("asset"),
+					id: ctx.getProperty("id")
+				};
+				console.log(claimId)
+				return claimId;
+			});
 
-			if (claimId.asset && claimId.id) {
+			var that = this;
+			this.claim(publicKey, claimIds).then(o => {
+				var xdrClaim = that.getView().byId("xdrClaim");
+				xdrClaim.setValue(o.xdr);
 
+				that.addPreAuth(publicKey, o.hash).then(xdr => {
+					var inputPanel = that.getView().byId("input");
+					var outputPanel = that.getView().byId("output");
+					var xdrPreAuth = that.getView().byId("xdrPreAuth");
+					xdrPreAuth.setValue(xdr);
 
-				var that = this;
-				this.claim(publicKey, claimId).then(o => {
-
-					var xdrClaim = that.getView().byId("xdrClaim");
-					xdrClaim.setValue(o.xdr);
-
-					that.addPreAuth(publicKey, o.hash).then(xdr => {
-
-						var inputPanel = that.getView().byId("input");
-						var outputPanel = that.getView().byId("output");
-						var xdrPreAuth = that.getView().byId("xdrPreAuth");
-						xdrPreAuth.setValue(xdr);
-
-						inputPanel.setVisible(false);
-						outputPanel.setVisible(true);
-
-					});
-
+					inputPanel.setVisible(false);
+					outputPanel.setVisible(true);
 				});
-
-			}
+			});
 		},
 
-		claim: async function (publicKey, claimId) {
+		claim: async function (publicKey, claimIds) {
 			var memo = StellarSdk.Memo.text('Claim');
 			var maxFee = await Horizon.server("PUBLIC").fetchBaseFee();
 			var account = await Horizon.server("PUBLIC").loadAccount(publicKey);
-
-			var code = "native";
-			var issuer = "";
-			var a = claimId.asset.split(':');
-			if (a.length == 2) {
-				code = a[0];
-				issuer = a[1];
-			}
-			var missingAsset = true;
-			if (account.balances) {
-				for (var b of account.balances) {
-					if (b.asset_code == code && b.asset_issuer == issuer) {
-						missingAsset = false;
-						break;
-					}
-				}
-			}
-
 
 			var seqnum = new BigNumber(account.sequence).plus(1);
 			var transactionAccount = new StellarSdk.Account(publicKey, seqnum.toString());
@@ -158,22 +134,40 @@ sap.ui.define([
 				networkPassphrase: passPhrase
 			});
 
-			/*
-			 * Add trust line
-			 */
-			if (missingAsset) {
-				txBuilder = txBuilder.addOperation(StellarSdk.Operation.changeTrust({
-					asset: new StellarSdk.Asset(code, issuer),
+			claimIds.forEach(claimId => {
+				var code = "native";
+				var issuer = "";
+				var a = claimId.asset.split(':');
+				if (a.length == 2) {
+					code = a[0];
+					issuer = a[1];
+				}
+				var missingAsset = true;
+				if (account.balances) {
+					for (var b of account.balances) {
+						if (b.asset_code == code && b.asset_issuer == issuer) {
+							missingAsset = false;
+							break;
+						}
+					}
+				}
+
+				/*
+				 * Add trust line if necessary
+				 */
+				if (missingAsset) {
+					txBuilder.addOperation(StellarSdk.Operation.changeTrust({
+						asset: new StellarSdk.Asset(code, issuer),
+					}));
+				}
+
+				/*
+				 * Claim balances
+				 */
+				txBuilder.addOperation(StellarSdk.Operation.claimClaimableBalance({
+					balanceId: claimId.id,
 				}));
-			}
-
-			/*
-			 * Claim balances
-			 */
-			txBuilder = txBuilder.addOperation(StellarSdk.Operation.claimClaimableBalance({
-				balanceId: claimId.id,
-			}));
-
+			});
 
 			var transaction = txBuilder.setTimeout(StellarSdk.TimeoutInfinite).build();
 			return {
@@ -181,6 +175,7 @@ sap.ui.define([
 				xdr: transaction.toXDR()
 			};
 		},
+
 		addPreAuth: async function (publicKey, hash) {
 			var memo = StellarSdk.Memo.text('PreAuth');
 			var maxFee = await Horizon.server("PUBLIC").fetchBaseFee();
@@ -202,8 +197,6 @@ sap.ui.define([
 			var transaction = txBuilder.setTimeout(StellarSdk.TimeoutInfinite).build();
 
 			return transaction.toXDR();
-
-
 		},
 
 		formatPredicate: function (predicate) {
@@ -219,6 +212,5 @@ sap.ui.define([
 
 			return "";
 		}
-
 	});
 });
