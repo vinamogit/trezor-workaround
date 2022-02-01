@@ -1,0 +1,38 @@
+{
+	"name": "trezor-workaround",
+	"version": "1.0.0",
+	"buildTimestamp": "202202011218",
+	"scmRevision": "",
+	"libraries": [
+		{
+			"name": "sap.f",
+			"version": "1.98.0",
+			"buildTimestamp": "202202011218",
+			"scmRevision": ""
+		},
+		{
+			"name": "sap.m",
+			"version": "1.98.0",
+			"buildTimestamp": "202202011218",
+			"scmRevision": ""
+		},
+		{
+			"name": "sap.ui.core",
+			"version": "1.98.0",
+			"buildTimestamp": "202202011218",
+			"scmRevision": ""
+		},
+		{
+			"name": "sap.ui.layout",
+			"version": "1.98.0",
+			"buildTimestamp": "202202011218",
+			"scmRevision": ""
+		},
+		{
+			"name": "sap.ui.unified",
+			"version": "1.98.0",
+			"buildTimestamp": "202202011218",
+			"scmRevision": ""
+		}
+	]
+}
