@@ -43,38 +43,40 @@ sap.ui.define([
 								}
 							} catch (e) {
 								//
+								console.log("Error resolving predicate " + e);
 							}
 
-							// if (predicate && predicate.status == "claimable") {
 
-								/*
-								 * Icons
-								 */
-								var icon = "./images/xlm.png";
-								if (record.asset != "native") {
-									icon = icons[record.asset]
-									if (!icon) {
-										var a = record.asset.split(':');
-										icon = await Horizon.getAssetImage(a[0], a[1]);
-										icons[record.asset] = icon;
-									}
+							/*
+								* Icons
+								*/
+							var icon = "./images/xlm.png";
+							if (record.asset != "native") {
+								icon = icons[record.asset]
+								if (!icon) {
+									var a = record.asset.split(':');
+									icon = await Horizon.getAssetImage(a[0], a[1]);
+									icons[record.asset] = icon;
 								}
+							}
 
-								model.claimables.push({
-									id: record.id,
-									amount: record.amount,
-									asset: record.asset,
-									claimants: record.claimants,
-									predicate: predicate,
-									// notion: notion.amount,
-									icon: icon
-								});
-							// }
+							model.claimables.push({
+								id: record.id,
+								amount: record.amount,
+								asset: record.asset,
+								claimants: record.claimants,
+								predicate: predicate,
+								icon: icon,
+								visible: !predicate || predicate.status == "claimable"
+							});
 						}
 						cb = await cb.next();
 					}
 
 					this.getView().setModel(new JSONModel(model));
+					if (model.claimables.length > 0) {
+						this.getView().byId("showAll").setEnabled(true);
+					}
 
 
 				} finally {
@@ -82,6 +84,24 @@ sap.ui.define([
 				}
 			}
 
+		},
+
+		showAll: function(event) {
+
+			var model = this.getView().getModel();
+			if (model) {
+				var data = model.getData();
+				if (event.getSource().getPressed()) {
+					for (var cb of data.claimables){
+						cb.visible = true;
+					}
+				} else {
+					for (var cb of data.claimables){
+						cb.visible = !cb.predicate || cb.predicate.status == "claimable";
+					}
+				}
+				model.setData(data)
+			}
 		},
 
 		generate: async function () {
@@ -214,6 +234,15 @@ sap.ui.define([
 			}
 
 			return "";
-		}
+		},
+		formatPredicateState: function (predicate) {
+			if (predicate) {
+				if (predicate.status == "claimable") {
+					return "Success";
+				}
+			}
+
+			return "None";
+		},
 	});
 });
