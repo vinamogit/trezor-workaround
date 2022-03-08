@@ -45,7 +45,7 @@ sap.ui.define([
 								//
 							}
 
-							if (predicate && predicate.status == "claimable") {
+							// if (predicate && predicate.status == "claimable") {
 
 								/*
 								 * Icons
@@ -69,7 +69,7 @@ sap.ui.define([
 									// notion: notion.amount,
 									icon: icon
 								});
-							}
+							// }
 						}
 						cb = await cb.next();
 					}

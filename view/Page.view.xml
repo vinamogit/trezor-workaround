@@ -1,5 +1,5 @@
 <mvc:View controllerName="stellar.trezor-workaround.controller.Page" xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:c="sap.ui.core" displayBlock="false">
-    <Page title="Workaround to claim claimable balances with a Trezor wallet (beta)">
+    <Page title="Workaround to claim claimable balances with a Trezor wallet (beta) UNDER TEST, DO NOT CLAIM IF STATUS IS upcoming">
 
         <Panel id="input">
             <VBox>
