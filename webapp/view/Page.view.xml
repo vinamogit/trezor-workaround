@@ -10,12 +10,17 @@
                 </HBox>
                 <List id="listClaimables" includeItemInSelection="true" selectionChange="selectionChangeClaimable" mode="MultiSelect" class="sapUiSizeCompact" items="{ path: '/claimables' }" headerText="Claimable balances ">
                     <items>
-                        <StandardListItem iconDensityAware="false" title="{amount}" description="{ path: 'asset' } " info="{predicate/status} { path: 'predicate', formatter: '.formatPredicate'}" icon="{ path: 'icon'}"></StandardListItem>
+                        <StandardListItem visible="{visible}" iconDensityAware="false" title="{amount}" description="{ path: 'asset' } " info="{predicate/status} { path: 'predicate', formatter: '.formatPredicate'}" infoState="{ path: 'predicate', formatter: '.formatPredicateState'}" icon="{ path: 'icon'}"></StandardListItem>
                     </items>
+                    <headerToolbar>
+                        <OverflowToolbar>
+                            <Title text="Claimable balances" level="H2" />
+                           <ToggleButton id="showAll" text="Show all" press="showAll" pressed="false" enabled="false" />
+                        </OverflowToolbar>
+                     </headerToolbar>
                 </List>
                 <Button text="Generate XDR" icon="sap-icon://feeder-arrow" press="generate" id="generate" />
-
-
+                <Text text="Note: Claiming upcoming or expired claimable balances will result in errors" />
             </VBox>
         </Panel>
         <Panel id="output" visible="false">
