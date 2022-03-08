@@ -200,14 +200,17 @@ sap.ui.define([
 		},
 
 		formatPredicate: function (predicate) {
-			if (predicate.validFrom && predicate.validTo) {
-				return 'from ' + new Date(predicate.validFrom * 1000).toISOString() + ' to ' + new Date(predicate.validTo * 1000).toISOString();
-			}
-			if (predicate.validFrom) {
-				return 'after ' + new Date(predicate.validFrom * 1000).toISOString();
-			}
-			if (predicate.validTo) {
-				return 'before ' + new Date(predicate.validTo * 1000).toISOString();
+			if (predicate) {
+
+				if (predicate.validFrom && predicate.validTo) {
+					return 'from ' + new Date(predicate.validFrom * 1000).toISOString() + ' to ' + new Date(predicate.validTo * 1000).toISOString();
+				}
+				if (predicate.validFrom) {
+					return 'after ' + new Date(predicate.validFrom * 1000).toISOString();
+				}
+				if (predicate.validTo) {
+					return 'before ' + new Date(predicate.validTo * 1000).toISOString();
+				}
 			}
 
 			return "";

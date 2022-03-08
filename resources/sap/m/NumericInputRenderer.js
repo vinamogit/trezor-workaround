@@ -1,0 +1,6 @@
+/*!
+ * OpenUI5
+ * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
+ */
+sap.ui.define(["sap/ui/core/Renderer","./InputRenderer","sap/ui/Device","sap/ui/core/LabelEnablement"],function(e,t,i,n){"use strict";var a=e.extend(t);a.apiVersion=2;a.writeInnerAttributes=function(e,t){var n=t.getParent(),r=this.getAccessibilityState(t);e.attr("type",i.system.desktop?"text":"number");if(sap.ui.getCore().getConfiguration().getRTL()){e.attr("dir","ltr")}r.disabled=null;if(a._isStepInput(n)){e.accessibilityState(n,r)}};a.getAccessibilityState=function(e){var r=t.getAccessibilityState(e),s,u,l,p,c,g,f,d,o,b=e.getParent(),y=e.getValue();if(!a._isStepInput(b)){return r}s=b._getMin();u=b._getMax();l=b.getValue();p=b.getDescription();g=b.getAriaLabelledBy();f=n.getReferencingLabels(b);d=b.getAriaDescribedBy().join(" ");r.valuenow=l;if(i.system.desktop&&y){r.valuetext=y}if(p){c=b._getInput().getId()+"-descr";if(g.indexOf(c)===-1){g.push(c)}}o=f.concat(g).join(" ");if(typeof s==="number"){r.valuemin=s}if(typeof u==="number"){r.valuemax=u}if(!b.getEditable()){r.readonly=true}if(d){r.describedby=d}if(o){r.labelledby=o}return r};a._isStepInput=function(e){return e&&e.getMetadata().getName()==="sap.m.StepInput"};return a});
