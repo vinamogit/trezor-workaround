@@ -141,7 +141,7 @@ sap.ui.define([
 
 		claim: async function (publicKey, claimIds) {
 			var memo = StellarSdk.Memo.text('Claim');
-			var maxFee = await Horizon.server("PUBLIC").fetchBaseFee();
+			var maxFee = 5000;
 			var account = await Horizon.server("PUBLIC").loadAccount(publicKey);
 
 			var seqnum = new BigNumber(account.sequence).plus(1);
@@ -198,7 +198,7 @@ sap.ui.define([
 
 		addPreAuth: async function (publicKey, hash) {
 			var memo = StellarSdk.Memo.text('PreAuth');
-			var maxFee = await Horizon.server("PUBLIC").fetchBaseFee();
+			var maxFee = 5000;
 			var account = await Horizon.server("PUBLIC").loadAccount(publicKey);
 			var passPhrase = StellarSdk.Networks.PUBLIC;
 			var txBuilder = new StellarSdk.TransactionBuilder(account, {
