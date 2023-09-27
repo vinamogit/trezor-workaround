@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -257,6 +257,41 @@ sap.ui.define([
 	};
 
 	/**
+	 * Indicates whether the <code>Patcher</code> is in creation or patching mode.
+	 *
+	 * @returns {boolean}
+	 */
+	Patcher.prototype.isCreating = function() {
+		return Boolean(this._oNewElement);
+	};
+
+	/**
+	 * Aligns the DOM node that is currently patched with the given DOM node that does not need patching.
+	 *
+	 * This method can be used to skip elements that do not need to be visited for patching.
+	 * If the callback is provided, then the Patcher informs the callback about the skipped node. The returned value of the callback
+	 * can be used to move the cursor of the Patcher on the DOM tree. This can be useful to skip multiple root nodes.
+	 *
+	 * @param {HTMLElement} oDomNode HTML element that needs to be aligned with the currently being patched node
+	 * @param {function} [fnCallback] The callback to be informed about the skipped node
+	 * @return {sap.ui.core.Patcher} Reference to <code>this</code> in order to allow method chaining
+	 */
+	Patcher.prototype.alignWithDom = function(oDomNode, fnCallback) {
+		this._walkOnTree();
+
+		if (!this._oCurrent || this._oCurrent.id != oDomNode.id || this._oParent != oDomNode.parentNode) {
+			this._oCurrent = this._oParent.insertBefore(oDomNode, this._oCurrent);
+		}
+
+		if (fnCallback) {
+			this._oCurrent = fnCallback(oDomNode) || this._oCurrent;
+		}
+
+		this._iTagOpenState = 0; /* Closed */
+		return this;
+	};
+
+	/**
 	 * Opens the start tag of an HTML element.
 	 *
 	 * This must be followed by <code>openEnd</code> and concluded with <code>close</code>.
@@ -304,7 +339,7 @@ sap.ui.define([
 	 * This is only valid when called between <code>openStart/voidStart</code> and <code>openEnd/voidEnd</code>.
 	 * Case-insensitive attribute names must all be set in lowercase.
 	 *
-	 * @param {string} vAttr Name of the attribute
+	 * @param {string} sAttr Name of the attribute
 	 * @param {*} vValue Value of the attribute; any non-string value specified is converted automatically into a string
 	 * @return {this} Reference to <code>this</code> in order to allow method chaining
 	 */
@@ -361,8 +396,8 @@ sap.ui.define([
 	 *
 	 * This is only valid when called between <code>openStart/voidStart</code> and <code>openEnd/voidEnd</code>.
 	 *
-	 * @param {string} sStyle Name of the style property
-	 * @param {string} sValue Value of the style property
+	 * @param {string} sName Name of the style property
+	 * @param {string} vValue Value of the style property
 	 * @return {this} Reference to <code>this</code> in order to allow method chaining
 	 */
 	Patcher.prototype.style = function(sName, vValue) {
@@ -479,7 +514,9 @@ sap.ui.define([
 	Patcher.prototype.close = function(sTagName) {
 		if (this._iTagOpenState) {
 			this._iTagOpenState = 0; /* Closed */
-			this._oCurrent.textContent = "";
+			if (this._oCurrent.lastChild) {
+				this._oCurrent.textContent = "";
+			}
 		} else {
 			var oParent = this._oCurrent.parentNode;
 			for (var oLastChild = oParent.lastChild; oLastChild && oLastChild != this._oCurrent; oLastChild = oParent.lastChild) {

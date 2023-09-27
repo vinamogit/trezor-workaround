@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -19,7 +19,8 @@ sap.ui.define([
 	'sap/ui/Device',
 	'sap/ui/core/EnabledPropagator',
 	"sap/ui/thirdparty/jquery",
-	"sap/ui/core/Popup"
+	"sap/ui/core/Popup",
+	"sap/ui/core/Element"
 ],
 	function(
 		library,
@@ -35,7 +36,8 @@ sap.ui.define([
 		Device,
 		EnabledPropagator,
 		jQuery,
-		Popup
+		Popup,
+		Element
 	) {
 		"use strict";
 
@@ -68,12 +70,11 @@ sap.ui.define([
 		 * @implements sap.ui.core.IContextMenu
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @public
 		 * @alias sap.m.Menu
-		 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 		 */
 		var Menu = Control.extend("sap.m.Menu", /** @lends sap.m.Menu.prototype */ {
 			metadata : {
@@ -169,6 +170,9 @@ sap.ui.define([
 				this._initDialog();
 			}
 			this._bIsInitialized = false;
+			// attach event handlers responsible for keeping sap.m.MenuItem and sap.ui.unified.MenuItem, sap.m.MenuListItem instances at sync
+			this.attachEvent("propertyChanged", this._onPropertyChanged, this);
+			this.attachEvent("aggregationChanged", this._onAggregationChanged, this);
 		};
 
 		/**
@@ -212,7 +216,7 @@ sap.ui.define([
 
 		/**
 		 * Opens the <code>Menu</code> next to the given control.
-		 * @param {object} oControl The control that defines the position for the menu
+		 * @param {sap.ui.core.Control} oControl The control that defines the position for the menu
 		 * @param {boolean} bWithKeyboard Whether the menu is opened with a shortcut or not
 		 * @param {sap.ui.core.Dock} [sDockMy=sap.ui.core.Popup.Dock.BeginTop] The reference docking location
 		 * of the <code>Menu</code> for positioning the menu on the screen
@@ -254,6 +258,19 @@ sap.ui.define([
 				this._getDialog() && this._getDialog().close();
 			} else {
 				this._getVisualParent() && this._getVisualParent().close();
+			}
+		};
+
+		/**
+		 * Returns whether the <code>Menu</code> is currently open.
+		 * @returns {boolean} true if menu is open
+		 * @public
+		 */
+		Menu.prototype.isOpen = function() {
+			if (Device.system.phone) {
+				return this._getDialog() && this._getDialog().isOpen();
+			} else {
+				return this._getVisualParent() && this._getVisualParent().isOpen();
 			}
 		};
 
@@ -305,7 +322,7 @@ sap.ui.define([
 			this._initMenuForItems(this.getItems());
 		};
 
-		/*
+		/**
 		 * Allows for any custom function to be called back when accessibility attributes
 		 * of underlying menu are about to be rendered.
 		 * The function is called once per MenuItem
@@ -313,7 +330,7 @@ sap.ui.define([
 		 * @param {function} fn The callback function
 		 * @private
 		 * @ui5-restricted ObjectPageLayoutABHelper
-		 * @returns void
+		 * @returns {void}
 		 */
 		Menu.prototype._setCustomEnhanceAccStateFunction = function(fn) {
 			this._fnEnhanceUnifiedMenuAccState = fn;
@@ -455,8 +472,15 @@ sap.ui.define([
 		};
 
 		Menu.prototype._createMenuListItemFromItem = function(oItem) {
-			return new MenuListItem({
-				id  : this._generateListItemId(oItem.getId()),
+			var sMenuListItemId = this._generateListItemId(oItem.getId()),
+				oListItem = Element.registry.get(sMenuListItemId);
+
+			if (oListItem) {
+				return oListItem;
+			}
+
+			oListItem = new MenuListItem({
+				id  : sMenuListItemId,
 				type: oItem.getEnabled() ? ListType.Active : ListType.Inactive,
 				icon: oItem.getIcon(),
 				title: oItem.getText(),
@@ -466,24 +490,40 @@ sap.ui.define([
 				visible: oItem.getVisible(),
 				enabled: oItem.getEnabled()
 			});
+
+			oItem.aDelegates.forEach(function(oDelegateObject) {
+				oListItem.addEventDelegate(oDelegateObject.oDelegate);
+			});
+
+			return oListItem;
 		};
 
 		Menu.prototype._createVisualMenuItemFromItem = function(oItem) {
-			var oUfMenuItem = new UfdMenuItem({
-				id: this._generateUnifiedMenuItemId(oItem.getId()),
+			var sUfMenuItemId = this._generateUnifiedMenuItemId(oItem.getId()),
+				oUfMenuItem = Element.registry.get(sUfMenuItemId),
+				aCustomData = oItem.getCustomData(), i;
+
+			if (oUfMenuItem) {
+				return oUfMenuItem;
+			}
+
+			oUfMenuItem = new UfdMenuItem({
+				id: sUfMenuItemId,
 				icon: oItem.getIcon(),
 				text: oItem.getText(),
 				startsSection: oItem.getStartsSection(),
 				tooltip: oItem.getTooltip(),
 				visible: oItem.getVisible(),
 				enabled: oItem.getEnabled()
-			}),
-			i,
-			aCustomData = oItem.getCustomData();
+			});
 
 			for (i = 0; i < aCustomData.length; i++) {
 				oItem._addCustomData(oUfMenuItem, aCustomData[i]);
 			}
+
+			oItem.aDelegates.forEach(function(oDelegateObject) {
+				oUfMenuItem.addEventDelegate(oDelegateObject.oDelegate);
+			});
 
 			return oUfMenuItem;
 		};
@@ -493,13 +533,6 @@ sap.ui.define([
 
 			oItem._setVisualParent(oMenu);
 			oItem._setVisualControl(oMenuItem);
-
-			// attach event handlers responsible for keeping separate instances at sync
-			var aEvents = ['aggregationChanged', 'propertyChanged'];
-			aEvents.forEach(function (sEvent) {
-				var sEventHandlerName = '_on' + sEvent.slice(0, 1).toUpperCase() + sEvent.slice(1); // capitalize
-				oItem.attachEvent(sEvent, this[sEventHandlerName], this);
-			}, this);
 
 			if (oItem.getItems().length !== 0) {
 				this._initMenuForItems(oItem.getItems(), oMenuItem);
@@ -519,12 +552,6 @@ sap.ui.define([
 
 			oItem._setVisualParent(oPage);
 			oItem._setVisualControl(oMenuListItem);
-			// attach event handlers responsible for keeping separate instances at sync
-			var aEvents = ['aggregationChanged', 'propertyChanged'];
-			aEvents.forEach(function (sEvent) {
-				var sEventHandlerName = '_on' + sEvent.slice(0, 1).toUpperCase() + sEvent.slice(1); // capitalize
-				oItem.attachEvent(sEvent, this[sEventHandlerName], this);
-			}, this);
 
 			if (oItem.getItems().length !== 0) {
 				this._initPageForParent(oItem);
@@ -537,7 +564,7 @@ sap.ui.define([
 				oList.insertItem(oMenuListItem, iIndex);
 			}
 
-			oList.rerender();
+			oList.invalidate();
 		};
 
 		/**
@@ -734,7 +761,7 @@ sap.ui.define([
 					}
 
 					if (vMenuOrList) { //if it is not destroyed already in the statement above
-						vMenuOrList.rerender();
+						vMenuOrList.invalidate();
 					}
 				}
 			}
@@ -785,11 +812,12 @@ sap.ui.define([
 		 * @private
 		 */
 		Menu.prototype._onPropertyChanged = function (oEvent) {
+			oEvent.cancelBubble();
 			var sPropertyKey = oEvent.getParameter("propertyKey"),
 				oPropertyValue = oEvent.getParameter("propertyValue"),
 				mTargetMenuItemProps = Device.system.phone ? Menu.MENU_LIST_ITEMS_PROPS : Menu.UNFIFIED_MENU_ITEMS_PROPS,
 				fnGenerateTargetItemId = Device.system.phone ? this._generateListItemId : this._generateUnifiedMenuItemId,
-				sTargetItemId;
+				sTargetItemId, oTargetItem;
 
 			if (Device.system.phone && sPropertyKey === 'text') {
 				sPropertyKey = 'title';
@@ -799,9 +827,13 @@ sap.ui.define([
 				return;
 			}
 			sTargetItemId = fnGenerateTargetItemId(oEvent.getSource().getId());
+			oTargetItem = Element.registry.get(sTargetItemId);
 
-			if (sTargetItemId) {
-				sap.ui.getCore().byId(sTargetItemId).setProperty(sPropertyKey, oPropertyValue);
+			if (oTargetItem) {
+				// Private aggregations are not going to get cloned if ManagedObject.prototype.clone method gets called.
+				// This would mean that it is possible to not have a sap.ui.unified.Menu instance and the corresponding
+				// sap.ui.unified.MenuItem instances at that point in time.
+				oTargetItem.setProperty(sPropertyKey, oPropertyValue);
 				if (Device.system.phone && this._getDialog().isOpen()) {
 					this._getDialog().close();
 				}
@@ -814,6 +846,7 @@ sap.ui.define([
 		* @private
 		*/
 		Menu.prototype._onAggregationChanged = function(oEvent) {
+			oEvent.cancelBubble();
 			var sAggregationname = oEvent.getParameter("aggregationName");
 
 			switch (sAggregationname) {
@@ -823,6 +856,7 @@ sap.ui.define([
 				case 'tooltip':
 					this._onTooltipAggregationChanged(oEvent);
 					break;
+				default:
 			}
 		};
 
@@ -891,7 +925,7 @@ sap.ui.define([
 					this._initPageForParent(oParentItem);
 					oParentItem._setVisualChild(oParentItem.getItems()[0]._getVisualParent());
 					oLI = sap.ui.getCore().byId(oParentItem._getVisualControl());
-					oLI.rerender();
+					oLI.invalidate();
 				} else {
 					this._initMenuForItems(oParentItem.getItems(), sap.ui.getCore().byId(oParentItem._getVisualControl()));
 					oParentItem._setVisualChild(oParentItem.getItems()[0]._getVisualParent());
@@ -915,7 +949,7 @@ sap.ui.define([
 			oItem._setVisualChild(null);
 
 			if (oVisualItem && oVisualItem.setMenuItem) {
-				oVisualItem.rerender();
+				oVisualItem.invalidate();
 				oVisualItem.setMenuItem(oItem);
 			}
 		};

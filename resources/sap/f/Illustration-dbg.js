@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -30,14 +30,13 @@ sap.ui.define([
 	 * @extends sap.m.Illustration
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @deprecated as of version 1.98. Use the {@link sap.m.Illustration} instead.
 	 * @since 1.88
 	 * @alias sap.f.Illustration
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var Illustration = sapMIllustration.extend("sap.f.Illustration", /** @lends sap.f.Illustration.prototype */ {
 		metadata: {

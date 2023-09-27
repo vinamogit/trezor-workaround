@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -10,6 +10,8 @@ sap.ui.define([
     "sap/ui/Device",
     "sap/ui/core/Control",
 	"sap/ui/core/library",
+	"sap/ui/core/IconPool",
+	"sap/ui/core/theming/Parameters",
     "sap/m/ToggleButton",
     "sap/m/Button",
     "./DynamicPageHeaderRenderer",
@@ -19,6 +21,8 @@ sap.ui.define([
 	Device,
 	Control,
 	CoreLibrary,
+	IconPool,
+	ThemeParameters,
 	ToggleButton,
 	Button,
 	DynamicPageHeaderRenderer,
@@ -58,13 +62,12 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @public
 		 * @since 1.42
 		 * @alias sap.f.DynamicPageHeader
-		 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 		 */
 		var DynamicPageHeader = Control.extend("sap.f.DynamicPageHeader", /** @lends sap.f.DynamicPageHeader.prototype */ {
 			metadata: {
@@ -104,7 +107,9 @@ sap.ui.define([
 					_collapseButton: {type: "sap.m.Button", multiple: false,  visibility: "hidden"}
 				},
 				designtime: "sap/f/designtime/DynamicPageHeader.designtime"
-			}
+			},
+
+			renderer: DynamicPageHeaderRenderer
 		});
 
 		/*************************************** Static members ******************************************/
@@ -282,7 +287,7 @@ sap.ui.define([
 		 */
 		DynamicPageHeader.prototype._toggleCollapseButton = function (bToggle) {
 			this._setShowCollapseButton(bToggle);
-			this._getCollapseButton().$().toggleClass("sapUiHidden", !bToggle);
+			this._getCollapseButton().toggleStyleClass("sapUiHidden", !bToggle);
 		};
 
 		/**
@@ -308,7 +313,7 @@ sap.ui.define([
 		 * @private
 		 */
 		DynamicPageHeader.prototype._focusCollapseButton = function () {
-			var sTextToAnnounce = this._getCollapseButton().getTooltip() + " " + DynamicPageHeader._getResourceBundle().getText("EXPANDED_HEADER");
+			var sTextToAnnounce = DynamicPageHeader._getResourceBundle().getText("EXPANDED_HEADER");
 			this._getCollapseButton().$().trigger("focus");
 			this._oInvisibleMessage.announce(sTextToAnnounce, InvisibleMessageMode.Polite);
 		};
@@ -352,6 +357,17 @@ sap.ui.define([
 				pinButton: oPinButton,
 				collapseButton: oCollapseButton
 			};
+		};
+
+		/**
+		 * Sets the icon of the pin button depending on the current theme
+		 */
+		DynamicPageHeader.prototype.onThemeChanged = function () {
+			var sIcon = IconPool.getIconURI(ThemeParameters.get({
+				name: "_sap_f_DynamicPageHeader_PinButton_Icon"
+			}));
+
+			this._getPinButton().setIcon(sIcon);
 		};
 
 		return DynamicPageHeader;

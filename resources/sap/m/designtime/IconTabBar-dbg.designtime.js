@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -96,14 +96,33 @@ sap.ui.define([
 					domRef: ":sap-domref > .sapMITH",
 					actions: {
 						move: "moveControls"
+					},
+					propagateMetadata: function (oFilter) {
+						if (oFilter.isA("sap.m.IconTabFilter")) {
+							return {
+								aggregations: {
+									content: {
+										domRef: function () {
+											return ":sap-domref > .sapMITBContainerContent";
+										},
+										actions: {
+											move: "moveControls"
+										}
+									}
+								}
+							};
+						}
+
+						return null;
 					}
 				},
 				content: {
 					domRef: function(oControl) {
 						var oSelectedItem = oControl._getIconTabHeader().oSelectedItem;
 
+						// item with own content
 						if (oSelectedItem && oSelectedItem.getContent().length) {
-							return;
+							return null;
 						}
 
 						return oControl.getDomRef("content");

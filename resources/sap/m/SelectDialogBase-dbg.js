@@ -1,19 +1,28 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides control sap.m.SelectDialogBase.
 sap.ui.define([
+		'./library',
 		'sap/ui/Device',
-		'sap/ui/core/Control'
+		'sap/ui/core/Core',
+		'sap/ui/core/Control',
+		'sap/ui/core/InvisibleText'
 ],
 function(
+	library,
 	Device,
-	Control
+	Core,
+	Control,
+	InvisibleText
 ) {
 	"use strict";
+
+	// shortcut for sap.m.SelectDialogInitialFocus
+	var SelectDialogInitialFocus = library.SelectDialogInitialFocus;
 
 	/**
 	 * Constructor for a new SelectDialogBase.
@@ -27,26 +36,35 @@ function(
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @abstract
 	 * @since 1.93
 	 * @alias sap.m.SelectDialogBase
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var SelectDialogBase = Control.extend("sap.m.SelectDialogBase", /** @lends sap.m.SelectDialogBase.prototype */ {
 		metadata: {
 			library: "sap.m",
 			"abstract": true,
-			properties: {},
+			properties: {
+				/**
+				 * Specifies the control that will receive the initial focus.
+				 *
+				 * <b>Note:</b> When the <code>growing</code> property is set to <code>true</code>,
+				 * you can set the initial focus to <code>sap.m.SelectDialogInitialFocus.SearchField</code>.
+				 * In this way the user can easily search for items that are not currently visible.
+				 * @since 1.117.0
+				 */
+				initialFocus: {type: "sap.m.SelectDialogInitialFocus", group: "Behavior", defaultValue: SelectDialogInitialFocus.List}
+			},
 			aggregations: {},
 			events: {
 				/**
 				 * Fires before <code>items</code> binding is updated (e.g. sorting, filtering)
 				 *
-				 * <b>Note:</b> Event handler should not invalidate the control.				 *
+				 * <b>Note:</b> Event handler should not invalidate the control.
 				 * @since 1.93
 				 */
 				updateStarted : {
@@ -130,15 +148,30 @@ function(
 		}
 	});
 
+	SelectDialogBase.getInvisibleText = function() {
+		if (!this.oInvisibleText) {
+			this.oInvisibleText = new InvisibleText({
+				text: Core.getLibraryResourceBundle("sap.m").getText("SELECTDIALOGBASE_LISTLABEL")
+			}).toStatic();
+		}
+
+		return this.oInvisibleText;
+	};
+
 	SelectDialogBase.prototype._setInitialFocus = function () {
+		var oInitiallyFocusedControl;
+
 		if (!Device.system.desktop) {
 			return;
 		}
 
-		var oInitiallyFocusedControl = this._oSearchField;
-
-		if (this.getItems().length) {
-			oInitiallyFocusedControl = this.getItems()[0];
+		switch (this.getInitialFocus()) {
+			case SelectDialogInitialFocus.SearchField:
+				oInitiallyFocusedControl = this._oSearchField;
+				break;
+			default:
+				oInitiallyFocusedControl = this._oDialog.getContent()[1];
+				break;
 		}
 
 		this._oDialog.setInitialFocus(oInitiallyFocusedControl);

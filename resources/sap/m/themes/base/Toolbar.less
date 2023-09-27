@@ -3,6 +3,8 @@
 /* Base theme                     */
 /* ============================== */
 
+@_sap_m_Toolbar_ShrinkItem_MinWidth: 2.5rem;
+
 //we want the first visible element on the row to have specific padding-left value
 .sapMIBar.sapMTB .sapMBarChild{
 	margin-left: 0.25rem;
@@ -27,8 +29,12 @@
 	-webkit-text-size-adjust: none;
 	-moz-text-size-adjust: none;
 	height: 3rem;
-	background: @sapUiToolbarBackground;
 	padding-right: 0.25rem;
+	background: @sapUiToolbarBackground;
+}
+
+.sapMTB.sapMTB-Transparent-CTX {
+	background: transparent;
 }
 
 .sapMIBar.sapMTB .sapMTBHiddenElement {
@@ -36,7 +42,7 @@
 	visibility: hidden;
 }
 
-.sapMTB:focus {
+.sapMTBFocused {
 	outline: 0;
 }
 
@@ -74,7 +80,7 @@
 }
 
 .sapMTBShrinkItem:not(.sapMSF) {
-	min-width: 2.5rem; /* default min-width value for the shrinkable items */
+	min-width: @_sap_m_Toolbar_ShrinkItem_MinWidth; /* default min-width value for the shrinkable items */
 }
 
 /* NewFlex */
@@ -94,7 +100,7 @@
 }
 
 /*** Toolbar inside of Form as Form- and Container- header ***/
-.sapUiFormContainerToolbar > .sapMTB{
+.sapUiFormContainerToolbar > .sapMTB.sapMIBar {
 	border-bottom: none;
 	padding: 0;
 }
@@ -157,6 +163,6 @@
 	min-width: 2rem;
 }
 
-.sapFDynamicPageTitleContent-CTX .sapMTB {
+.sapFDynamicPageTitleContent-CTX .sapMTB.sapMTBStandard {
 	border-bottom: none;
 }

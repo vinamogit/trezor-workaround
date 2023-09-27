@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -11,16 +11,19 @@ sap.ui.define([
 	"sap/base/util/isEmptyObject",
 	"sap/base/util/merge",
 	"sap/base/util/uid",
+	"sap/ui/base/SyncPromise",
 	"sap/ui/thirdparty/URI"
-], function (Log, deepEqual, isEmptyObject, merge, uid, URI) {
+], function (Log, deepEqual, isEmptyObject, merge, uid, SyncPromise, URI) {
 	"use strict";
 
 	var rAmpersand = /&/g,
+		rApplicationGroupID = /^\w+$/,
 		sClassName = "sap.ui.model.odata.v4.lib._Helper",
 		rEquals = /\=/g,
 		rEscapedCloseBracket = /%29/g,
 		rEscapedOpenBracket = /%28/g,
 		rEscapedTick = /%27/g,
+		rGroupID = /^(\$auto(\.\w+)?|\$direct|\w+)$/,
 		rHash = /#/g,
 		// matches the rest of a segment after '(' and any segment that consists only of a number
 		rNotMetaContext = /\([^/]*|\/-?\d+/g,
@@ -33,6 +36,18 @@ sap.ui.define([
 		 */
 		_Helper;
 
+	/**
+	 * Ensures that the key predicates in the given URL are not %-encoded.
+	 *
+	 * @param {string} sUrl - The URL
+	 * @returns {string} The converted URL
+	 */
+	function preserveKeyPredicates(sUrl) {
+		return sUrl.replace(rEscapedTick, "'")
+			.replace(rEscapedOpenBracket, "(")
+			.replace(rEscapedCloseBracket, ")");
+	}
+
 	_Helper = {
 		/**
 		 * Adds an item to the given map by path.
@@ -43,12 +58,14 @@ sap.ui.define([
 		 *   The path
 		 * @param {object} [oItem]
 		 *   The item; if it is <code>undefined</code>, nothing happens
+		 *
+		 * @public
 		 */
 		addByPath : function (mMap, sPath, oItem) {
 			if (oItem) {
 				if (!mMap[sPath]) {
 					mMap[sPath] = [oItem];
-				} else if (mMap[sPath].indexOf(oItem) < 0) {
+				} else if (!mMap[sPath].includes(oItem)) {
 					mMap[sPath].push(oItem);
 				}
 			}
@@ -64,13 +81,15 @@ sap.ui.define([
 		 * @param {string[]} aAncestors - List of ancestor paths (unmodified)
 		 * @param {object} mChildren - Hash set of child paths, maps string to <code>true</code>;
 		 *   is modified
+		 *
+		 * @private
 		 */
 		addChildrenWithAncestor : function (aChildren, aAncestors, mChildren) {
 			if (aAncestors.length) {
 				aChildren.forEach(function (sPath) {
 					var aSegments;
 
-					if (aAncestors.indexOf(sPath) >= 0) {
+					if (aAncestors.includes(sPath)) {
 						mChildren[sPath] = true;
 						return;
 					}
@@ -89,15 +108,47 @@ sap.ui.define([
 		},
 
 		/**
+		 * Adds a rejectable SyncPromise to a private annotation of the element and returns it.
+		 *
+		 * @param {object} oElement - The cache element
+		 * @returns {sap.ui.base.SyncPromise} The promise
+		 *
+		 * @public
+		 */
+		addPromise : function (oElement) {
+			return new SyncPromise(function (_fnResolve, fnReject) {
+				_Helper.setPrivateAnnotation(oElement, "reject", fnReject);
+			});
+		},
+
+		/**
+		 * Adds the given delta to the collection's $count if there is one. Notifies the listeners.
+		 *
+		 * @param {object} mChangeListeners A map of change listeners by path
+		 * @param {string} sPath The path of the collection in the cache
+		 * @param {array} aCollection The collection
+		 * @param {number} iDelta The delta
+		 *
+		 * @public
+		 */
+		addToCount : function (mChangeListeners, sPath, aCollection, iDelta) {
+			if (aCollection.$count !== undefined) {
+				_Helper.setCount(mChangeListeners, sPath, aCollection, aCollection.$count + iDelta);
+			}
+		},
+
+		/**
 		 * Adds the given paths to $select of the given query options.
 		 *
 		 * @param {object} mQueryOptions The query options
 		 * @param {string[]} aSelectPaths The paths to add to $select
+		 *
+		 * @public
 		 */
 		addToSelect : function (mQueryOptions, aSelectPaths) {
 			mQueryOptions.$select = mQueryOptions.$select || [];
 			aSelectPaths.forEach(function (sPath) {
-				if (mQueryOptions.$select.indexOf(sPath) < 0) {
+				if (!mQueryOptions.$select.includes(sPath)) {
 					mQueryOptions.$select.push(sPath);
 				}
 			});
@@ -116,6 +167,8 @@ sap.ui.define([
 		 *   The parameter context path
 		 * @param {string} [sContextPath]
 		 *   The context path for a bound operation
+		 *
+		 * @public
 		 */
 		adjustTargets : function (oMessage, oOperationMetadata, sParameterContextPath,
 				sContextPath) {
@@ -150,6 +203,8 @@ sap.ui.define([
 		 *   The parameter context path
 		 * @param {string} [sContextPath]
 		 *   The context path for a bound operation
+		 *
+		 * @public
 		 */
 		adjustTargetsInError : function (oError, oOperationMetadata, sParameterContextPath,
 				sContextPath) {
@@ -175,6 +230,8 @@ sap.ui.define([
 		 * @param {object} mAggregatedQueryOptions The aggregated query options
 		 * @param {object} mQueryOptions The query options to merge into the aggregated query
 		 *   options
+		 *
+		 * @public
 		 */
 		aggregateExpandSelect : function (mAggregatedQueryOptions, mQueryOptions) {
 			if (mQueryOptions.$select) {
@@ -212,6 +269,8 @@ sap.ui.define([
 		 * buildPath("/base", "('predicate')") --> "/base('predicate')"
 		 *
 		 * @returns {string} a composite path built from all arguments
+		 *
+		 * @public
 		 */
 		buildPath : function () {
 			var sPath = "",
@@ -248,6 +307,8 @@ sap.ui.define([
 		 *   buildQuery({foo : ["bar", "baz"]}) results in the query string "?foo=bar&foo=baz"
 		 * @returns {string}
 		 *   The query string; it is empty if there are no parameters; it starts with "?" otherwise
+		 *
+		 * @public
 		 */
 		buildQuery : function (mParameters) {
 			var aKeys, aQuery;
@@ -278,6 +339,92 @@ sap.ui.define([
 		},
 
 		/**
+		 * Converts the select paths into an object where each of the selected properties has the
+		 * value <code>true</code>, unless a (complex) parent property is also selected.
+		 *
+		 * @param {string[]} [aSelect] - The list of selected paths
+		 * @returns {object|boolean} - An object marking the selected properties or
+		 *   <code>true</code> if all properties are selected ("*")
+		 *
+		 * @private
+		 */
+		buildSelect : function (aSelect) {
+			var oSelect = {};
+
+			if (!aSelect || aSelect.includes("*")) {
+				return true;
+			}
+
+			aSelect.forEach(function (sPath) {
+				var aSegments = sPath.split("/"),
+					iLast = aSegments.length - 1,
+					oSubSelect = oSelect;
+
+				aSegments.some(function (sSegment, i) {
+					if (i === iLast || aSegments[i + 1] === "*") {
+						oSubSelect[sSegment] = true;
+						return true;
+					}
+					if (oSubSelect[sSegment] === true) {
+						return true; // no need to descend when the complex property is selected
+					}
+					oSubSelect = oSubSelect[sSegment] = oSubSelect[sSegment] || {};
+				});
+			});
+
+			return oSelect;
+		},
+
+		/**
+		 * Cancels all nested creates within the given element.
+		 *
+		 * @param {object} oElement - The entity data in the cache
+		 * @param {string} sMessage - The error message to use
+		 *
+		 * @public
+		 */
+		cancelNestedCreates : function (oElement, sMessage) {
+			Object.keys(oElement).forEach(function (sKey) {
+				var oError,
+					vProperty = oElement[sKey];
+
+				if (vProperty && vProperty.$postBodyCollection) {
+					oError = new Error(sMessage);
+					oError.canceled = true;
+					vProperty.forEach(function (oChildElement) {
+						_Helper.getPrivateAnnotation(oChildElement, "reject")(oError);
+						_Helper.cancelNestedCreates(oChildElement, sMessage);
+					});
+				}
+			});
+		},
+
+		/**
+		 * Checks whether the given group ID is valid, which means it is either undefined, '$auto',
+		 * '$auto.*', '$direct' or an application group ID as specified in
+		 * {@link sap.ui.model.odata.v4.ODataModel}.
+		 *
+		 * @param {string} sGroupId
+		 *   The group ID
+		 * @param {boolean} [bApplicationGroup]
+		 *   Whether only an application group ID is considered valid
+		 * @param {string} [sErrorMessage]
+		 *   The error message to be used if group ID is not valid; the group ID will be appended
+		 * @throws {Error}
+		 *   For invalid group IDs
+		 *
+		 * @public
+		 */
+		checkGroupId : function (sGroupId, bApplicationGroup, sErrorMessage) {
+			if (!bApplicationGroup && sGroupId === undefined
+					|| typeof sGroupId === "string"
+						&& (bApplicationGroup ? rApplicationGroupID : rGroupID).test(sGroupId)) {
+				return;
+			}
+			throw new Error((sErrorMessage || "Invalid group ID: ") + sGroupId);
+		},
+
+		/**
 		 * Returns a clone of the given value, according to the rules of
 		 * <code>JSON.stringify</code>.
 		 * <b>Warning: <code>Date</code> objects will be turned into strings</b>
@@ -285,13 +432,97 @@ sap.ui.define([
 		 * @param {any} vValue - Any value, including <code>undefined</code>
 		 * @param {function} [fnReplacer] - The replacer function to transform the result, see
 		 *   <code>JSON.stringify</code>
-		 * @returns {any} - A clone
+		 * @param {boolean} [bAsString] - Whether to return the result of JSON.stringify
+		 * @returns {any} A clone or its string representation
+		 *
+		 * @public
 		 */
-		clone : function clone(vValue, fnReplacer) {
-			return vValue === undefined || vValue === Infinity || vValue === -Infinity
-				|| /*NaN?*/vValue !== vValue // eslint-disable-line no-self-compare
-				? vValue
-				: JSON.parse(JSON.stringify(vValue, fnReplacer));
+		clone : function clone(vValue, fnReplacer, bAsString) {
+			var sStringified;
+
+			if (vValue === undefined || vValue === Infinity || vValue === -Infinity
+					|| Number.isNaN(vValue)) {
+				return vValue;
+			}
+			sStringified = JSON.stringify(vValue, fnReplacer);
+			return bAsString ? sStringified : JSON.parse(sStringified);
+		},
+
+		/**
+		 * Returns a clone of the given value, according to the rules of
+		 * <code>JSON.stringify</code>, with all "$..." properties removed.
+		 *
+		 * @param {any} vValue - Any value, including <code>undefined</code>
+		 * @returns {any} A clone
+		 *
+		 * @public
+		 * @see .clone
+		 */
+		cloneNo$ : function cloneNo$(vValue) {
+			return _Helper.clone(vValue, function (sKey, vValue) {
+				return sKey[0] === "$" ? undefined : vValue;
+			});
+		},
+
+		/**
+		 * Converts $select and $expand of the given query options into corresponding paths. Expects
+		 * $select to be always an array and $expand to be always an object (as delivered by
+		 * ODataModel#buildQueryOptions). Other query options are ignored.
+		 *
+		 * $expand must not contain collection-valued navigation properties.
+		 *
+		 * @param {object} mQueryOptions - The query options
+		 * @returns {string[]} The paths
+		 *
+		 * @public
+		 */
+		convertExpandSelectToPaths : function (mQueryOptions) {
+			var aPaths = [];
+
+			function convert(mQueryOptions0, sPathPrefix) {
+				if (mQueryOptions0.$select) {
+					mQueryOptions0.$select.forEach(function (sSelect) {
+						aPaths.push(_Helper.buildPath(sPathPrefix, sSelect));
+					});
+				}
+				if (mQueryOptions0.$expand) {
+					Object.keys(mQueryOptions0.$expand).forEach(function (sExpandPath) {
+						convert(mQueryOptions0.$expand[sExpandPath],
+							_Helper.buildPath(sPathPrefix, sExpandPath));
+						});
+				}
+			}
+
+			convert(mQueryOptions, "");
+			return aPaths;
+		},
+
+		/**
+		 * Copies the value of the private client-side instance annotation with the given
+		 * unqualified name from the given source to the given target object, if present at the
+		 * source.
+		 *
+		 * @param {object} oSource
+		 *   Any object
+		 * @param {string} sAnnotation
+		 *   The unqualified name of a private client-side instance annotation (hidden inside
+		 *   namespace "@$ui5._")
+		 * @param {object} oTarget
+		 *   Any object
+		 * @throws {Error}
+		 *   If the annotation to be copied is already present at the target, no matter if the value
+		 *   is the same or not
+		 *
+		 * @public
+		 */
+		copyPrivateAnnotation : function (oSource, sAnnotation, oTarget) {
+			if (_Helper.hasPrivateAnnotation(oSource, sAnnotation)) {
+				if (_Helper.hasPrivateAnnotation(oTarget, sAnnotation)) {
+					throw new Error("Must not overwrite: " + sAnnotation);
+				}
+				_Helper.setPrivateAnnotation(oTarget, sAnnotation,
+					_Helper.getPrivateAnnotation(oSource, sAnnotation));
+			}
 		},
 
 		/**
@@ -336,8 +567,10 @@ sap.ui.define([
 		 *     <li> <code>statusText</code>: (optional) HTTP status text
 		 *   </ul>
 		 * @see <a href=
-		 * "http://docs.oasis-open.org/odata/odata-json-format/v4.0/os/odata-json-format-v4.0-os.html"
+		 * "http://docs.oasis-open.org/odata/odata-json-format/v4.0/os/odata-json-format-v4.0-os.html#_Representing_Errors_in"
 		 * >"19 Error Response"</a>
+		 *
+		 * @public
 		 */
 		createError : function (jqXHR, sMessage, sRequestUrl, sResourcePath) {
 			var sBody = jqXHR.responseText,
@@ -369,6 +602,7 @@ sap.ui.define([
 			}
 			if (sRetryAfter) {
 				iRetryAfter = parseInt(sRetryAfter);
+				// no need to use UI5Date.getInstance as only the timestamp is relevant
 				oResult.retryAfter = new Date(Number.isNaN(iRetryAfter)
 					? sRetryAfter
 					: Date.now() + iRetryAfter * 1000);
@@ -407,6 +641,8 @@ sap.ui.define([
 		 * @returns {function}
 		 *   A "get*" method returning the "fetch*" method's result or
 		 *   <code>undefined</code> in case the promise is not (yet) fulfilled
+		 *
+		 * @public
 		 */
 		createGetMethod : function (sFetch, bThrow) {
 			return function () {
@@ -437,6 +673,8 @@ sap.ui.define([
 		 * @throws {Error}
 		 *   If a property along the way exists, but has an <code>undefined</code> or
 		 *   <code>null</code> value
+		 *
+		 * @public
 		 */
 		createMissing : function (oObject, aSegments) {
 			aSegments.reduce(function (oCurrent, sSegment, i) {
@@ -455,6 +693,8 @@ sap.ui.define([
 		 * @returns {function}
 		 *   A "request*" method returning the "fetch*" method's result wrapped via
 		 *   <code>Promise.resolve()</code>
+		 *
+		 * @public
 		 */
 		createRequestMethod : function (sFetch) {
 			return function () {
@@ -474,6 +714,8 @@ sap.ui.define([
 		 *    the given message itself or if supplied, the "@$ui5.originalMessage" property.
 		 *    If one of these is an <code>Error</code> instance, then <code>{}</code> is returned.
 		 *    The clone is created lazily.
+		 *
+		 * @public
 		 */
 		createTechnicalDetails : function (oMessage) {
 			var oClonedMessage,
@@ -528,6 +770,8 @@ sap.ui.define([
 		 * @returns {Error[]}
 		 *   One error for each request given, suitable for
 		 *   {@link sap.ui.model.odata.v4.ODataModel#reportError}
+		 *
+		 * @public
 		 */
 		decomposeError : function (oError, aRequests, sServiceUrl) {
 			var aDetailContentIDs = oError.error.details
@@ -568,6 +812,8 @@ sap.ui.define([
 
 				if (!isRelevant(oClone.error, sTopLevelContentID)) {
 					oClone.error.$ignoreTopLevel = true;
+				} else {
+					oClone.strictHandlingFailed = oError.strictHandlingFailed;
 				}
 				if (oClone.error.details) {
 					oClone.error.details = oClone.error.details.filter(function (oDetail, i) {
@@ -592,6 +838,8 @@ sap.ui.define([
 		 * @param {string} sAnnotation
 		 *   The unqualified name of a private client-side instance annotation (hidden inside
 		 *   namespace "@$ui5._")
+		 *
+		 * @public
 		 */
 		deletePrivateAnnotation : function (oObject, sAnnotation) {
 			var oPrivateNamespace = oObject["@$ui5._"];
@@ -602,18 +850,73 @@ sap.ui.define([
 		},
 
 		/**
+		 * Deletes the property identified by the given path from the given object.
+		 *
+		 * @param {object} oObject - The object to start at
+		 * @param {string} sPath - Some relative path
+		 *
+		 * @public
+		 */
+		deleteProperty : function (oObject, sPath) {
+			var aSegments;
+
+			if (sPath.includes("/")) {
+				aSegments = sPath.split("/");
+				sPath = aSegments.pop();
+				oObject = _Helper.drillDown(oObject, aSegments);
+				if (!oObject) {
+					return;
+				}
+			}
+			delete oObject[sPath];
+		},
+
+		/**
+		 * Deletes within the given entity and property path the property annotation
+		 * "@$ui5.updating".
+		 *
+		 * @param {string} sPropertyPath
+		 *   The path of the property in the entity which might be annotated with "@$ui5.updating"
+		 * @param {object} oEntity
+		 *   The entity
+		 *
+		 * @public
+		 */
+		deleteUpdating : function (sPropertyPath, oEntity) {
+			var oData = oEntity;
+
+			sPropertyPath.split("/").some(function (sSegment) {
+				var vValue = oData[sSegment];
+
+				if (vValue === null || Array.isArray(vValue)) {
+					return true;
+				}
+				if (typeof vValue === "object") {
+					oData = vValue;
+					return false;
+				}
+				delete oData[sSegment + "@$ui5.updating"];
+			});
+		},
+
+		/**
 		 * Drills down into the given object according to the given path.
 		 *
 		 * @param {object} oObject
 		 *   The object to start at
-		 * @param {string[]} aSegments
-		 *   Relative path to drill-down into, as array of segments
+		 * @param {string|string[]} vSegments
+		 *   Relative path to drill-down into, may already be split as array of segments
 		 * @returns {any}
 		 *   The result matching to the given path, or <code>undefined</code> if the path leads
 		 *   into void
+		 *
+		 * @public
 		 */
-		drillDown : function (oObject, aSegments) {
-			return aSegments.reduce(function (oCurrent, sSegment) {
+		drillDown : function (oObject, vSegments) {
+			if (typeof vSegments === "string") {
+				vSegments = vSegments.split("/");
+			}
+			return vSegments.reduce(function (oCurrent, sSegment) {
 				return (oCurrent && sSegment in oCurrent) ? oCurrent[sSegment] : undefined;
 			}, oObject);
 		},
@@ -627,6 +930,8 @@ sap.ui.define([
 		 *   If true, "=" is encoded, too
 		 * @returns {string}
 		 *   The encoded query part
+		 *
+		 * @public
 		 */
 		encode : function (sPart, bEncodeEquals) {
 			var sEncoded = encodeURI(sPart)
@@ -649,6 +954,8 @@ sap.ui.define([
 		 *   The sValue
 		 * @returns {string}
 		 *   The encoded key-value pair in the form "key=value"
+		 *
+		 * @public
 		 */
 		encodePair : function (sKey, sValue) {
 			return _Helper.encode(sKey, true) + "=" + _Helper.encode(sValue, false);
@@ -673,7 +980,7 @@ sap.ui.define([
 		 *   An array of raw message objects suitable for
 		 *   {@link sap.ui.model.odata.v4.ODataModel#createUI5Message}
 		 *
-		 * @private
+		 * @public
 		 */
 		extractMessages : function (oError) {
 			var aMessages = [];
@@ -748,6 +1055,8 @@ sap.ui.define([
 		 *   The original query options, will be modified
 		 * @returns {object}
 		 *   The extracted query options
+		 *
+		 * @public
 		 */
 		extractMergeableQueryOptions : function (mQueryOptions) {
 			var mExtractedQueryOptions = {};
@@ -771,6 +1080,8 @@ sap.ui.define([
 		 * @param {string} sMetaPath The meta path
 		 * @returns {sap.ui.base.SyncPromise<object>} A promise resolving with the property reached
 		 *   by the meta path or <code>undefined</code> otherwise.
+		 *
+		 * @public
 		 */
 		fetchPropertyAndType : function (fnFetchMetadata, sMetaPath) {
 			return fnFetchMetadata(sMetaPath).then(function (oProperty) {
@@ -797,6 +1108,8 @@ sap.ui.define([
 		 *   A list of absolute paths
 		 * @returns {string[]}
 		 *   The filtered list
+		 *
+		 * @public
 		 */
 		filterPaths : function (aMetaPaths, aPathsToFilter) {
 			return aPathsToFilter.filter(function (sPathToFilter) {
@@ -814,14 +1127,17 @@ sap.ui.define([
 		 * @param {object} mChangeListeners A map of change listeners by path
 		 * @param {string} sPropertyPath The path
 		 * @param {any} vValue The value to report to the listeners
+		 * @param {boolean} bForceUpdate Whether a listener should force an update
+		 *
+		 * @public
 		 */
-		fireChange : function (mChangeListeners, sPropertyPath, vValue) {
+		fireChange : function (mChangeListeners, sPropertyPath, vValue, bForceUpdate) {
 			var aListeners = mChangeListeners[sPropertyPath],
 				i;
 
 			if (aListeners) {
 				for (i = 0; i < aListeners.length; i += 1) {
-					aListeners[i].onChange(vValue);
+					aListeners[i].onChange(vValue, bForceUpdate);
 				}
 			}
 		},
@@ -836,6 +1152,8 @@ sap.ui.define([
 		 * @param {object} oValue The value
 		 * @param {boolean} bRemoved If true the value is assumed to have been removed and the
 		 *   change event reports undefined as the new value
+		 *
+		 * @public
 		 */
 		fireChanges : function (mChangeListeners, sPath, oValue, bRemoved) {
 			Object.keys(oValue).forEach(function (sProperty) {
@@ -865,6 +1183,8 @@ sap.ui.define([
 		 *   "5.1.1.6.1 Primitive Literals"
 		 * @throws {Error}
 		 *   If the value is undefined or the type is not supported
+		 *
+		 * @public
 		 */
 		formatLiteral : function (vValue, sType) {
 			if (vValue === undefined) {
@@ -899,7 +1219,7 @@ sap.ui.define([
 					return "duration'" + vValue + "'";
 
 				case "Edm.String":
-					return "'" + vValue.replace(rSingleQuote, "''") + "'";
+					return "'" + String(vValue).replace(rSingleQuote, "''") + "'";
 
 				default:
 					throw new Error("Unsupported type: " + sType);
@@ -915,6 +1235,8 @@ sap.ui.define([
 		 * @returns {string[]|undefined}
 		 *   The value of the additionalTargets annotation, or <code>undefined</code> in case there
 		 *   is not exactly one such annotation (ignoring the alias)
+		 *
+		 * @private
 		 */
 		getAdditionalTargets : function (oMessage) {
 			return _Helper.getAnnotation(oMessage, ".additionalTargets");
@@ -950,6 +1272,8 @@ sap.ui.define([
 		 *   The context path for a bound operation
 		 * @returns {string|undefined} The adjusted target, or <code>undefined</code> if the target
 		 *   is unknown
+		 *
+		 * @private
 		 */
 		getAdjustedTarget : function (sTarget, oOperationMetadata, sParameterContextPath,
 					sContextPath) {
@@ -989,6 +1313,8 @@ sap.ui.define([
 		 * @returns {any}
 		 *   The value of the annotation, or <code>undefined</code> in case there is not exactly one
 		 *   such annotation (ignoring the alias)
+		 *
+		 * @public
 		 */
 		getAnnotation : function (oMessage, sName) {
 			var sAnnotationKey = _Helper.getAnnotationKey(oMessage, sName);
@@ -1011,6 +1337,8 @@ sap.ui.define([
 		 * @returns {string|undefined}
 		 *   The key of the annotation, or <code>undefined</code> in case there is not exactly one
 		 *   such annotation (ignoring the alias)
+		 *
+		 * @public
 		 */
 		getAnnotationKey : function (oObject, sName, sProperty) {
 			var sAnnotationKey,
@@ -1040,6 +1368,8 @@ sap.ui.define([
 		 * @returns {string|undefined}
 		 *   The value of the ContentID annotation, or <code>undefined</code> in case there is not
 		 *   exactly one such annotation (ignoring the alias)
+		 *
+		 * @private
 		 */
 		getContentID : function (oMessage) {
 			return _Helper.getAnnotation(oMessage, ".ContentID");
@@ -1064,6 +1394,8 @@ sap.ui.define([
 		 *   property is undefined
 		 * @throws {Error}
 		 *   In case the entity type has no key properties according to metadata
+		 *
+		 * @public
 		 */
 		getKeyFilter : function (oInstance, sMetaPath, mTypeForMetaPath, aKeyProperties) {
 			var aFilters = [],
@@ -1103,6 +1435,8 @@ sap.ui.define([
 		 *   "('42')", or <code>undefined</code>, if at least one key property is undefined
 		 * @throws {Error}
 		 *   In case the entity type has no key properties according to metadata
+		 *
+		 * @public
 		 */
 		getKeyPredicate : function (oInstance, sMetaPath, mTypeForMetaPath, aKeyProperties,
 				bKeepSingleProperty) {
@@ -1150,6 +1484,8 @@ sap.ui.define([
 		 *   - undefined, if at least one key property is undefined.
 		 * @throws {Error}
 		 *   In case the entity type has no key properties according to metadata
+		 *
+		 * @private
 		 */
 		getKeyProperties : function (oInstance, sMetaPath, mTypeForMetaPath, aKeyProperties,
 				bReturnAlias) {
@@ -1158,7 +1494,7 @@ sap.ui.define([
 
 			aKeyProperties = aKeyProperties || mTypeForMetaPath[sMetaPath].$Key;
 			bFailed = aKeyProperties.some(function (vKey) {
-				var sKey, sKeyPath, sPropertyName, aSegments, oType, vValue;
+				var sKey, sKeyPath, oObject, sPropertyName, aSegments, oType, vValue;
 
 				if (typeof vKey === "string") {
 					sKey = sKeyPath = vKey;
@@ -1170,14 +1506,15 @@ sap.ui.define([
 					}
 				}
 				aSegments = sKeyPath.split("/");
+				// the last path segment is the name of the simple property
+				sPropertyName = aSegments.pop();
 
-				vValue = _Helper.drillDown(oInstance, aSegments);
-				if (vValue === undefined) {
+				oObject = _Helper.drillDown(oInstance, aSegments);
+				vValue = oObject[sPropertyName];
+				if (vValue === undefined || (sPropertyName + "@odata.type") in oObject) {
 					return true;
 				}
 
-				// the last path segment is the name of the simple property
-				sPropertyName = aSegments.pop();
 				// find the type containing the simple property
 				oType = mTypeForMetaPath[_Helper.buildPath(sMetaPath, aSegments.join("/"))];
 				vValue = _Helper.formatLiteral(vValue, oType[sPropertyName].$Type);
@@ -1201,6 +1538,8 @@ sap.ui.define([
 		 *   A data path within the OData data model
 		 * @returns {string}
 		 *   The corresponding metadata path within the OData metadata model
+		 *
+		 * @public
 		 */
 		getMetaPath : function (sPath) {
 			if (sPath[0] === "/") {
@@ -1210,6 +1549,73 @@ sap.ui.define([
 				sPath = "/" + sPath;
 			}
 			return sPath.replace(rNotMetaContext, "").slice(1);
+		},
+
+		/**
+		 * Returns a list of properties that would be expected due to $select/$expand, but are
+		 * missing in vEntityOrCollection. Does not analyze $expand any further, only checks whether
+		 * there is data for the navigation property itself (relying on requestSideEffects to take
+		 * care of the details).
+		 *
+		 * @param {object|object[]} vEntityOrCollection - The entity (collection)
+		 * @param {object} mQueryOptions - The query options (only $select and $expand required)
+		 * @returns {string[]}
+		 *   A list of paths relative to vEntityOrCollection for which the property value is missing
+		 * @throws {Error} If there is a path containing "*"
+		 *
+		 * @public
+		 */
+		getMissingPropertyPaths : function (vEntityOrCollection, mQueryOptions) {
+			return (mQueryOptions.$select || []).concat(Object.keys(mQueryOptions.$expand || {}))
+				.filter(function (sPath) {
+					return _Helper.isMissingProperty(vEntityOrCollection, sPath);
+				});
+		},
+
+		/**
+		 * Returns the list of predicates corresponding to the given list of contexts, or
+		 * <code>null</code if at least one predicate is missing.
+		 *
+		 * @param {sap.ui.model.odata.v4.Context[]} aContexts - A list of contexts
+		 * @returns {string[]|null} The corresponding list of predicates
+		 *
+		 * @public
+		 */
+		getPredicates : function (aContexts) {
+			var bMissingPredicate,
+				aPredicates = aContexts.map(getPredicate);
+
+			function getPredicate(oContext) {
+				var sPredicate = _Helper.getPrivateAnnotation(oContext.getValue(), "predicate");
+
+				if (!sPredicate) {
+					bMissingPredicate = true;
+				}
+				return sPredicate;
+			}
+
+			return bMissingPredicate ? null : aPredicates;
+		},
+
+		/**
+		 * Returns the index of the key predicate in the last segment of the given path.
+		 *
+		 * @param {string} sPath - The path
+		 * @returns {number} The index of the key predicate
+		 * @throws {Error} If no path is given or the last segment contains no key predicate
+		 *
+		 * @public
+		 */
+		getPredicateIndex : function (sPath) {
+			var iPredicateIndex = sPath
+				? sPath.indexOf("(", sPath.lastIndexOf("/"))
+				: -1;
+
+			if (iPredicateIndex < 0 || !sPath.endsWith(")")) {
+				throw new Error("Not a list context path to an entity: " + sPath);
+			}
+
+			return iPredicateIndex;
 		},
 
 		/**
@@ -1224,6 +1630,8 @@ sap.ui.define([
 		 * @returns {any}
 		 *   The annotation's value or <code>undefined</code> if no such annotation exists (e.g.
 		 *   because the private namespace object does not exist)
+		 *
+		 * @public
 		 */
 		getPrivateAnnotation : function (oObject, sAnnotation) {
 			var oPrivateNamespace = oObject["@$ui5._"];
@@ -1242,6 +1650,8 @@ sap.ui.define([
 		 * @returns {object}
 		 *   The corresponding query options (live reference, no clone!); may be empty, but not
 		 *   falsy
+		 *
+		 * @public
 		 */
 		getQueryOptionsForPath : function (mQueryOptions, sPath) {
 			sPath = _Helper.getMetaPath(sPath);
@@ -1280,6 +1690,7 @@ sap.ui.define([
 		 *   <code>undefined</code> if there is no such suffix, or <code>sPath</code> if
 		 *   <code>sBasePath</code> is empty.
 		 *
+		 * @public
 		 * @see .hasPathPrefix
 		 */
 		getRelativePath : function (sPath, sBasePath) {
@@ -1301,6 +1712,41 @@ sap.ui.define([
 		},
 
 		/**
+		 * Returns the path for the return value context. Supports bound operations on an entity or
+		 * a collection.
+		 *
+		 * @param {string} sPath
+		 *   The bindings's path; either a resolved model path or a resource path; for example:
+		 *   "/Artists(ArtistID='42',IsActiveEntity=true)/special.cases.EditAction(...)" or
+		 *   "/Artists/special.cases.Create(...)", the leading "/" can be omitted.
+		 * @param {string} sResponsePredicate The key predicate of the response entity
+		 * @returns {string} The path for the return value context.
+		 *
+		 * @public
+		 */
+		getReturnValueContextPath : function (sPath, sResponsePredicate) {
+			var sBoundParameterPath = sPath.slice(0, sPath.lastIndexOf("/")),
+				i = sBoundParameterPath.indexOf("(");
+
+			return (i < 0 ? sBoundParameterPath : sPath.slice(0, i)) + sResponsePredicate;
+		},
+
+		/**
+		 * Tells whether <code>sPath</code> has <code>sBasePath</code> as path prefix. It returns
+		 * <code>true</code> iff {@link .getRelativePath} does not return <code>undefined</code>.
+		 *
+		 * @param {string} sPath The path
+		 * @param {string} sBasePath The base path
+		 * @returns {boolean} true if sBasePath path is a prefix of sPath
+		 *
+		 * @public
+		 * @see .getRelativePath
+		 */
+		hasPathPrefix : function (sPath, sBasePath) {
+			return _Helper.getRelativePath(sPath, sBasePath) !== undefined;
+		},
+
+		/**
 		 * Tells whether the given object has a private client-side instance annotation with the
 		 * given unqualified name (no matter what the value is).
 		 *
@@ -1311,6 +1757,8 @@ sap.ui.define([
 		 *   namespace "@$ui5._")
 		 * @returns {boolean}
 		 *   Whether such an annotation exists
+		 *
+		 * @public
 		 */
 		hasPrivateAnnotation : function (oObject, sAnnotation) {
 			var oPrivateNamespace = oObject["@$ui5._"];
@@ -1321,14 +1769,19 @@ sap.ui.define([
 		/**
 		 * Fires change events for all properties that differ between the old and the new value.
 		 * The function recursively handles modified, added or removed structural properties
-		 * and fires change events for all modified/added/removed primitive properties therein.
+		 * and fires change events for all modified/added/removed primitive properties therein. If
+		 * the new value is <code>undefined</code>, the event is fired with <code>null</code> as a
+		 * value unless <code>bAllowUndefined</code> is set.
 		 *
 		 * @param {object} mChangeListeners A map of change listeners by path
 		 * @param {string} sPath The path of both values in mChangeListeners
 		 * @param {any} vOld The old value
 		 * @param {any} vNew The new value
+		 * @param {boolean} [bAllowUndefined] Allows undefined values
+		 *
+		 * @public
 		 */
-		informAll : function (mChangeListeners, sPath, vOld, vNew) {
+		informAll : function (mChangeListeners, sPath, vOld, vNew, bAllowUndefined) {
 			if (vNew === vOld) {
 				return;
 			}
@@ -1336,12 +1789,13 @@ sap.ui.define([
 			if (vNew && typeof vNew === "object") {
 				Object.keys(vNew).forEach(function (sProperty) {
 					_Helper.informAll(mChangeListeners, _Helper.buildPath(sPath, sProperty),
-						vOld && vOld[sProperty], vNew[sProperty]);
+						vOld && vOld[sProperty], vNew[sProperty], bAllowUndefined);
 				});
 			} else {
 				// must fire null to guarantee that a property binding has not
 				// this.vValue === undefined, see ODataPropertyBinding.setValue
-				_Helper.fireChange(mChangeListeners, sPath, vNew === undefined ? null : vNew);
+				_Helper.fireChange(mChangeListeners, sPath,
+					!bAllowUndefined && vNew === undefined ? null : vNew);
 				vNew = {};
 			}
 
@@ -1350,7 +1804,7 @@ sap.ui.define([
 					// not covered in the new value
 					if (!vNew.hasOwnProperty(sProperty)) {
 						_Helper.informAll(mChangeListeners, _Helper.buildPath(sPath, sProperty),
-							vOld[sProperty], undefined);
+							vOld[sProperty], undefined, bAllowUndefined);
 					}
 				});
 			}
@@ -1375,6 +1829,8 @@ sap.ui.define([
 		 * @throws {Error}
 		 *   If a property along the way exists, but has an <code>undefined</code> or
 		 *   <code>null</code> value
+		 *
+		 * @public
 		 */
 		inheritPathValue : function (aSegments, oSource, oTarget) {
 			aSegments.forEach(function (sSegment, i) {
@@ -1398,7 +1854,7 @@ sap.ui.define([
 		 *
 		 * Note: In case the meta path <code>sRootMetaPath</code> points to a single-valued
 		 * navigation property, for example "/SalesOrderList/SO_2_BP", this methods adds the key
-		 * properties of the related entity type to the "$select" query options. Although this
+		 * properties of the related entity type to the "$select" query options. Although this is
 		 * not needed in order to obtain the correct nested entity it enables
 		 * {@link sap.ui.model.odata.v4.Context#requestSideEffects}) to check the consistency of the
 		 * key predicates.
@@ -1417,24 +1873,24 @@ sap.ui.define([
 		 *   The meta path for the cache root's type, for example "/SalesOrderList/SO_2_BP" or
 		 *   "/Artists/foo.EditAction/@$ui5.overload/0/$ReturnType/$Type", such that an OData simple
 		 *   identifier may be appended
-		 * @param {object} mNavigationPropertyPaths
-		 *   Hash set of collection-valued navigation property meta paths (relative to the cache's
-		 *   root, that is without the root meta path prefix) which need to be refreshed, maps
-		 *   string to <code>true</code>; is modified
 		 * @param {string} [sPrefix=""]
 		 *   Optional prefix for navigation property meta paths used during recursion
-		 * @param {boolean} [bAllowEmptySelect]
-		 *   Whether an empty "$select" is allowed
+		 * @param {boolean} bWithMessages
+		 *   Whether the "@com.sap.vocabularies.Common.v1.Messages" path is treated specially
 		 * @returns {object}
 		 *   The updated query options or <code>null</code> if no request is needed
 		 * @throws {Error}
 		 *   If a path string is empty or the intersection requires a "$expand" of a
 		 *   collection-valued navigation property
+		 *
+		 * @public
 		 */
 		intersectQueryOptions : function (mCacheQueryOptions, aPaths, fnFetchMetadata,
-				sRootMetaPath, mNavigationPropertyPaths, sPrefix, bAllowEmptySelect) {
+				sRootMetaPath, sPrefix, bWithMessages) {
 			var aExpands = [],
 				mExpands = {},
+				sMessagesPath = bWithMessages && fnFetchMetadata(sRootMetaPath
+					+ "/@com.sap.vocabularies.Common.v1.Messages/$Path").getResult(),
 				mResult,
 				oRootMetaData,
 				aSelects,
@@ -1467,11 +1923,17 @@ sap.ui.define([
 			}
 
 			if (aPaths.indexOf("*") >= 0) {
-				aSelects = mCacheQueryOptions && mCacheQueryOptions.$select || [];
+				aSelects = (mCacheQueryOptions && mCacheQueryOptions.$select || []).slice();
+				if (sMessagesPath && !aSelects.includes(sMessagesPath)) {
+					aSelects.push(sMessagesPath);
+				}
 			} else if (mCacheQueryOptions && mCacheQueryOptions.$select
 					&& mCacheQueryOptions.$select.indexOf("*") < 0) {
 				_Helper.addChildrenWithAncestor(aPaths, mCacheQueryOptions.$select, mSelects);
 				_Helper.addChildrenWithAncestor(mCacheQueryOptions.$select, aPaths, mSelects);
+				if (sMessagesPath && aPaths.includes(sMessagesPath)) {
+					mSelects[sMessagesPath] = true;
+				}
 				aSelects = Object.keys(mSelects).filter(filterStructural.bind(null, true));
 			} else {
 				aSelects = aPaths.filter(filterStructural.bind(null, false));
@@ -1489,9 +1951,6 @@ sap.ui.define([
 
 					_Helper.addChildrenWithAncestor([sNavigationPropertyPath], aPaths, mSet);
 					if (!isEmptyObject(mSet)) {
-						if (fnFetchMetadata(sMetaPath).getResult().$isCollection) {
-							mNavigationPropertyPaths[sPrefixedNavigationPropertyPath] = true;
-						}
 						// complete navigation property may change, same expand as initially
 						mExpands[sNavigationPropertyPath]
 							= mCacheQueryOptions.$expand[sNavigationPropertyPath];
@@ -1509,7 +1968,7 @@ sap.ui.define([
 						mChildQueryOptions = _Helper.intersectQueryOptions(
 							mCacheQueryOptions.$expand[sNavigationPropertyPath] || {},
 							aStrippedPaths, fnFetchMetadata, sMetaPath,
-							mNavigationPropertyPaths, sPrefixedNavigationPropertyPath);
+							sPrefixedNavigationPropertyPath);
 						if (mChildQueryOptions) {
 							mExpands[sNavigationPropertyPath] = mChildQueryOptions;
 						}
@@ -1527,9 +1986,6 @@ sap.ui.define([
 				// for a collection we already have the key in the resource path
 				_Helper.selectKeyProperties(mResult,
 					fnFetchMetadata(sRootMetaPath + "/").getResult());
-			} else if (!aSelects.length && !bAllowEmptySelect) {
-				// avoid $select= in URL, use any navigation property
-				mResult.$select = Object.keys(mExpands).slice(0, 1);
 			}
 			if (isEmptyObject(mExpands)) {
 				delete mResult.$expand;
@@ -1541,17 +1997,59 @@ sap.ui.define([
 		},
 
 		/**
-		 * Tells whether <code>sPath</code> has <code>sBasePath</code> as path prefix. It returns
-		 * <code>true</code> iff {@link .getRelativePath} does not return <code>undefined</code>.
+		 * Tells whether the given map of binding parameters is defining data aggregation, but not a
+		 * recursive hierarchy.
 		 *
-		 * @param {string} sPath The path
-		 * @param {string} sBasePath The base path
-		 * @returns {boolean} true if sBasePath path is a prefix of sPath
+		 * @param {object} [mParameters] - Map of binding parameters
+		 * @returns {boolean} Whether it's about data aggregation
 		 *
-		 * @see .getRelativePath
+		 * @public
 		 */
-		hasPathPrefix : function (sPath, sBasePath) {
-			return _Helper.getRelativePath(sPath, sBasePath) !== undefined;
+		isDataAggregation : function (mParameters) {
+			return mParameters
+				&& mParameters.$$aggregation
+				&& !mParameters.$$aggregation.hierarchyQualifier;
+		},
+
+		// Trampoline property to allow for mocking function module in unit tests.
+		// @see sap.base.util.isEmptyObject
+		isEmptyObject : isEmptyObject,
+
+		/**
+		 * Returns whether the given property is missing in vEntityOrCollection. This is the case if
+		 * there is no value for it. It is not missing if a parent has a <code>null</code> value. In
+		 * a collection it is missing if any member misses it.
+		 *
+		 * @param {object|object[]} vEntityOrCollection - The entity (collection)
+		 * @param {string} sPath - The property path
+		 * @returns {boolean} Whether the property is missing
+		 * @throws {Error} If there is a path containing "*"
+		 *
+		 * @private
+		 */
+		isMissingProperty : function (vEntityOrCollection, sPath) {
+			var aSegments = sPath.split("/");
+
+			// Checks whether the sub-path in aSegments starting at index i is missing in vValue
+			function isMissing(vValue, i) {
+				var vProperty;
+
+				if (Array.isArray(vValue)) {
+					return vValue.some(function (vItem) {
+						return isMissing(vItem, i);
+					});
+				}
+				vProperty = vValue[aSegments[i]];
+				if (vProperty && typeof vProperty === "object" && i + 1 < aSegments.length) {
+					return isMissing(vProperty, i + 1);
+				}
+				return vProperty === undefined;
+			}
+
+			if (sPath.includes("*")) {
+				throw new Error("Unsupported property path " + sPath);
+			}
+			return isMissing(vEntityOrCollection, 0);
 		},
 
 		/**
@@ -1560,6 +2058,8 @@ sap.ui.define([
 		 * @param {number} iNumber The value
 		 * @returns {boolean}
 		 *   True if the value is a safe integer
+		 *
+		 * @public
 		 */
 		isSafeInteger : function (iNumber) {
 			if (typeof iNumber !== "number" || !isFinite(iNumber)) {
@@ -1573,6 +2073,50 @@ sap.ui.define([
 		},
 
 		/**
+		 * Determines whether the given property path is selected in the given query options.
+		 *
+		 * A property path is selected if $select in the query options or the matching $expand
+		 * <ul>
+		 *   <li> is missing
+		 *   <li> contains "*"
+		 *   <li> contains the property or its surrounding complex type.
+		 * </ul>
+		 *
+		 * Note: The function works w/o metadata, this means that not for all combinations of the
+		 * given arguments the function might return the right result.
+		 * Example: Assuming SO_2_BP is a navigation property, then
+		 * <code>_Helper.isSelected("SO_2_BP/Picture", {$select : ["*"]})</code>
+		 * will return true, because SO_2_BP would be taken as a structural property. So far this is
+		 * ok, because within all known scenarios such combinations do not happen.
+		 *
+		 * @param {string} sPropertyPath The path to the structural property as meta path
+		 * @param {object} [mQueryOptions] The query options to be analyzed
+		 * @returns {boolean} Whether the property for the given path was already selected
+		 *
+		 * @public
+		 */
+		isSelected : function (sPropertyPath, mQueryOptions) {
+			var sPath, sRelativePath;
+
+			if (!mQueryOptions) {
+				return false;
+			}
+			if (mQueryOptions.$expand) {
+				for (sPath in mQueryOptions.$expand) {
+					sRelativePath = _Helper.getRelativePath(sPropertyPath, sPath);
+					if (sRelativePath) {
+						return _Helper.isSelected(sRelativePath, mQueryOptions.$expand[sPath]);
+					}
+				}
+			}
+			return !mQueryOptions.$select
+				|| mQueryOptions.$select.includes("*")
+				|| mQueryOptions.$select.some(function (sSelect) {
+					return _Helper.hasPathPrefix(sPropertyPath, sSelect);
+				});
+		},
+
+		/**
 		 * Make the given URL absolute using the given base URL. The URLs must not contain a host
 		 * or protocol part. Ensures that key predicates are not %-encoded.
 		 *
@@ -1582,12 +2126,62 @@ sap.ui.define([
 		 *   The base URL
 		 * @returns {string}
 		 *   The absolute URL
+		 *
+		 * @public
 		 */
 		makeAbsolute : function (sUrl, sBase) {
-			return new URI(sUrl).absoluteTo(sBase).toString()
-				.replace(rEscapedTick, "'")
-				.replace(rEscapedOpenBracket, "(")
-				.replace(rEscapedCloseBracket, ")");
+			return preserveKeyPredicates(new URI(sUrl).absoluteTo(sBase).toString());
+		},
+
+		/**
+		 * Make the given absolute URL relative to the given base URL. The URLs must not contain a
+		 * host or protocol part. Ensures that key predicates are not %-encoded.
+		 *
+		 * @param {string} sUrl
+		 *   The URL
+		 * @param {string} sBase
+		 *   The base URL
+		 * @returns {string}
+		 *   The relative URL
+		 *
+		 * @public
+		 */
+		makeRelativeUrl : function (sUrl, sBase) {
+			return preserveKeyPredicates(new URI(sUrl).relativeTo(sBase).toString());
+		},
+
+		/**
+		 * Makes an object that has the given value exactly at the given property path allowing to
+		 * use the result in _Helper.updateExisting().
+		 *
+		 * Examples:
+		 * <ul>
+		 *   <li> ["Age"], 42 -> {Age: 42}
+		 *   <li> ["Address", "City"], "Walldorf" -> {Address: {City: "Walldorf"}}
+		 * </ul>
+		 *
+		 * @param {string[]} aPropertyPath
+		 *   The property path split into an array of segments
+		 * @param {any} vValue
+		 *   The property value
+		 * @param {boolean} [bUpdating]
+		 *   Whether the given property will not be overwritten by a creation POST(+GET) response
+		 * @returns {object}
+		 *   The resulting object
+		 *
+		 * @public
+		 */
+		makeUpdateData : function (aPropertyPath, vValue, bUpdating) {
+			return aPropertyPath.reduceRight(function (vValue0, sSegment) {
+				var oResult = {};
+
+				oResult[sSegment] = vValue0;
+				if (bUpdating) {
+					oResult[sSegment + "@$ui5.updating"] = true;
+					bUpdating = false;
+				}
+				return oResult;
+			}, vValue);
 		},
 
 		// Trampoline property to allow for mocking function module in unit tests.
@@ -1608,6 +2202,8 @@ sap.ui.define([
 		 *   aggregating the data. Both can be <code>undefined</code>.
 		 * @returns {object}
 		 *   The merged map of query options
+		 *
+		 * @public
 		 */
 		mergeQueryOptions : function (mQueryOptions, sOrderby, aFilters) {
 			var mResult;
@@ -1636,6 +2232,8 @@ sap.ui.define([
 		 *   The qualified name or annotation target
 		 * @returns {string}
 		 *   The namespace
+		 *
+		 * @public
 		 */
 		namespace : function (sName) {
 			var iIndex;
@@ -1662,6 +2260,8 @@ sap.ui.define([
 		 * @returns {any} The model value
 		 * @throws {Error} If the type is invalid or unsupported; the function only validates when a
 		 *   conversion is required
+		 *
+		 * @public
 		 */
 		parseLiteral : function (sLiteral, sType, sPath) {
 			function checkNaN(nValue) {
@@ -1710,18 +2310,21 @@ sap.ui.define([
 		 *   Any value, including <code>undefined</code>
 		 * @param {boolean} [bRemoveClientAnnotations]
 		 *   Whether to remove all client-side annotations, not just private ones
+		 * @param {boolean} [bAsString]
+		 *   Whether to return the result of JSON.stringify
 		 * @returns {any}
-		 *   A public clone
+		 *   A public clone or its string representation
 		 *
+		 * @public
 		 * @see sap.ui.model.odata.v4.lib._Helper.clone
 		 */
-		publicClone : function (vValue, bRemoveClientAnnotations) {
+		publicClone : function (vValue, bRemoveClientAnnotations, bAsString) {
 			return _Helper.clone(vValue, function (sKey, vValue) {
 				if (bRemoveClientAnnotations ? !sKey.startsWith("@$ui5.") : sKey !== "@$ui5._") {
 					return vValue;
 				}
 				// return undefined;
-			});
+			}, bAsString);
 		},
 
 		/**
@@ -1733,6 +2336,8 @@ sap.ui.define([
 		 *   The path
 		 * @param {object} oItem
 		 *   The item
+		 *
+		 * @public
 		 */
 		removeByPath : function (mMap, sPath, oItem) {
 			var aItems = mMap[sPath],
@@ -1751,6 +2356,39 @@ sap.ui.define([
 		},
 
 		/**
+		 * Restores an entity and its POST body to the initial state which is read from a private
+		 * annotation. Key-value pairs are deleted if they are not in the initial state. Change
+		 * listeners are notified about the changed or deleted values, and the "inactive" flag at
+		 * the entity and at its corresponding context is reset to <code>true</code>.
+		 *
+		 * @param {object} mChangeListeners - A map of change listeners by path
+		 * @param {string} sPath - The path to the entity; used to notify change listeners
+		 * @param {object} oEntity - The entity to be restored.
+		 *
+		 * @public
+		 */
+		resetInactiveEntity : function (mChangeListeners, sPath, oEntity) {
+			var oInitialData = _Helper.getPrivateAnnotation(oEntity, "initialData"),
+				oPostBody = _Helper.getPrivateAnnotation(oEntity, "postBody"),
+				oOldPostBody = Object.assign({}, oPostBody);
+
+			Object.keys(oPostBody).forEach(function (sKey) {
+				if (sKey in oInitialData) {
+					oEntity[sKey] = oPostBody[sKey] = _Helper.clone(oInitialData[sKey]);
+				} else {
+					delete oPostBody[sKey];
+					delete oEntity[sKey];
+				}
+			});
+
+			_Helper.informAll(mChangeListeners, sPath, oOldPostBody, oPostBody, true);
+			_Helper.updateAll(mChangeListeners, sPath, oEntity,
+				{"@$ui5.context.isInactive" : true}
+			);
+			_Helper.getPrivateAnnotation(oEntity, "context").setInactive();
+		},
+
+		/**
 		 * Resolves the "If-Match" header in the given map of request-specific headers.
 		 * For lazy determination of the ETag, the "If-Match" header may contain an object
 		 * containing the current ETag. If needed create a copy of the given map and replace the
@@ -1758,10 +2396,15 @@ sap.ui.define([
 		 *
 		 * @param {object} [mHeaders]
 		 *   Map of request-specific headers.
+		 * @param {boolean} [bIgnoreETag]
+		 *   Whether the entity's ETag should be actively ignored (If-Match:*); ignored if there is
+		 *   no ETag or if "If-Match" does not contain an object
 		 * @returns {object}
 		 *   The map of request-specific headers with the resolved If-Match header.
+		 *
+		 * @public
 		 */
-		resolveIfMatchHeader : function (mHeaders) {
+		resolveIfMatchHeader : function (mHeaders, bIgnoreETag) {
 			var vIfMatchValue = mHeaders && mHeaders["If-Match"];
 
 			if (vIfMatchValue && typeof vIfMatchValue === "object") {
@@ -1770,10 +2413,46 @@ sap.ui.define([
 				if (vIfMatchValue === undefined) {
 					delete mHeaders["If-Match"];
 				} else {
-					mHeaders["If-Match"] = vIfMatchValue;
+					mHeaders["If-Match"] = bIgnoreETag ? "*" : vIfMatchValue;
 				}
 			}
 			return mHeaders;
+		},
+
+		/**
+		 * Searches all properties in oOld annotated with "@$ui5.updating" and restores the property
+		 * value in oNew.
+		 *
+		 * @param {object} oOld
+		 *   The old element
+		 * @param {object} oNew
+		 *   The new element
+		 * @returns {object}
+		 *   The new element with the restored properties
+		 *
+		 * @public
+		 */
+		restoreUpdatingProperties : function (oOld, oNew) {
+			var oTempNew = oNew || {};
+
+			Object.keys(oOld || {}).forEach(function (sProperty) {
+				if (sProperty.startsWith("@")) {
+					return; // skip annotations
+				}
+				if (Array.isArray(oOld[sProperty])) {
+					return; // skip arrays
+				}
+				if (typeof oOld[sProperty] === "object") {
+					oTempNew[sProperty]
+						= _Helper.restoreUpdatingProperties(oOld[sProperty], oTempNew[sProperty]);
+				}
+				if (oOld[sProperty + "@$ui5.updating"]) {
+					oTempNew[sProperty] = oOld[sProperty];
+					oTempNew[sProperty + "@$ui5.updating"] = oOld[sProperty + "@$ui5.updating"];
+					oNew = oTempNew;
+				}
+			});
+			return oNew;
 		},
 
 		/**
@@ -1783,6 +2462,8 @@ sap.ui.define([
 		 *   The query options
 		 * @param {object} oType
 		 *   The entity type's metadata "JSON"
+		 *
+		 * @public
 		 */
 		selectKeyProperties : function (mQueryOptions, oType) {
 			if (oType && oType.$Key) {
@@ -1796,6 +2477,66 @@ sap.ui.define([
 		},
 
 		/**
+		 * Sets the new value of the annotation with the given name at the given object; removes it
+		 * in case of an <code>undefined</code> value.
+		 *
+		 * @param {object} oObject - Any object
+		 * @param {string} sAnnotation - The annotation's name
+		 * @param {any} [vValue] - The annotation's new value
+		 *
+		 * @public
+		 */
+		setAnnotation : function (oObject, sAnnotation, vValue) {
+			if (vValue !== undefined) {
+				oObject[sAnnotation] = vValue;
+			} else {
+				delete oObject[sAnnotation];
+			}
+		},
+
+		/**
+		 * Sets the collection's $count: a number representing the sum of the element count on
+		 * server-side and the number of transient elements created on the client. It may be
+		 * <code>undefined</code>, but not <code>Infinity</code>. Notifies the listeners. Requires
+		 * that <code>$count</code> exists as an own property of the collection.
+		 *
+		 * @param {object} mChangeListeners A map of change listeners by path
+		 * @param {string} sPath The path of the collection in the cache
+		 * @param {object[]} aCollection The collection
+		 * @param {string|number} vCount The count
+		 *
+		 * @public
+		 */
+		setCount : function (mChangeListeners, sPath, aCollection, vCount) {
+			// Note: @odata.count is of type Edm.Int64, represented as a string in OData responses;
+			// $count should be a number and the loss of precision is acceptable
+			if (typeof vCount === "string") {
+				vCount = parseInt(vCount);
+			}
+			// Note: this relies on $count being present as an own property of aCollection
+			_Helper.updateExisting(mChangeListeners, sPath, aCollection, {$count : vCount});
+		},
+
+		/**
+		 * Adds the given language as "sap-language" URL parameter to the given URL, unless such a
+		 * parameter is already present, and returns the resulting (or unchanged) URL.
+		 *
+		 * @param {string} sUrl - A URL w/o a fragment part
+		 * @param {string} [sLanguage] - An optional value for "sap-language"
+		 * @returns {string} The resulting (or unchanged) URL as described above
+		 *
+		 * @public
+		 */
+		setLanguage : function (sUrl, sLanguage) {
+			if (sLanguage && !sUrl.includes("?sap-language=") && !sUrl.includes("&sap-language=")) {
+				sUrl += (sUrl.includes("?") ? "&" : "?") + "sap-language="
+					+ _Helper.encode(sLanguage);
+			}
+
+			return sUrl;
+		},
+
+		/**
 		 * Sets the new value of the private client-side instance annotation with the given
 		 * unqualified name at the given object.
 		 *
@@ -1806,6 +2547,8 @@ sap.ui.define([
 		 *   namespace "@$ui5._")
 		 * @param {any} vValue
 		 *   The annotation's new value; <code>undefined</code> is a valid value
+		 *
+		 * @public
 		 */
 		setPrivateAnnotation : function (oObject, sAnnotation, vValue) {
 			var oPrivateNamespace = oObject["@$ui5._"];
@@ -1827,6 +2570,8 @@ sap.ui.define([
 		 *   A list of paths
 		 * @returns {string[]}
 		 *   The list of remainders for all paths which start with the given prefix
+		 *
+		 * @public
 		 */
 		stripPathPrefix : function (sPrefix, aPaths) {
 			var sPathPrefix = sPrefix + "/";
@@ -1851,6 +2596,8 @@ sap.ui.define([
 		 *   The element to be converted into an array.
 		 * @returns {Array}
 		 *   The array for the given element.
+		 *
+		 * @public
 		 */
 		toArray : function (vElement) {
 			if (vElement === undefined || vElement === null) {
@@ -1884,38 +2631,27 @@ sap.ui.define([
 		 * @param {string} sPath The path of the old object in mChangeListeners
 		 * @param {object} oTarget The target object
 		 * @param {object} oSource The source object
-		 * @param {function} [fnCheckKeyPredicate] Callback function which tells whether the key
-		 *   predicate for the given path is checked for equality instead of just being copied
-		 *   from source to target
 		 * @returns {object} The target object
 		 * @throws {Error} If a key predicate check fails
+		 *
+		 * @public
 		 */
-		updateAll : function (mChangeListeners, sPath, oTarget, oSource, fnCheckKeyPredicate) {
+		updateAll : function (mChangeListeners, sPath, oTarget, oSource) {
 			Object.keys(oSource).forEach(function (sProperty) {
 				var sPropertyPath = _Helper.buildPath(sPath, sProperty),
-					sSourcePredicate,
 					vSourceProperty = oSource[sProperty],
-					sTargetPredicate,
 					vTargetProperty = oTarget[sProperty];
 
 				if (sProperty === "@$ui5._") {
-					sSourcePredicate = _Helper.getPrivateAnnotation(oSource, "predicate");
-					if (fnCheckKeyPredicate && fnCheckKeyPredicate(sPath)) {
-						sTargetPredicate = _Helper.getPrivateAnnotation(oTarget, "predicate");
-						if (sSourcePredicate !== sTargetPredicate) {
-							throw new Error("Key predicate of '" + sPath + "' changed from "
-								+ sTargetPredicate + " to " + sSourcePredicate);
-						}
-					} else {
-						_Helper.setPrivateAnnotation(oTarget, "predicate", sSourcePredicate);
-					}
+					_Helper.setPrivateAnnotation(oTarget, "predicate",
+						_Helper.getPrivateAnnotation(oSource, "predicate"));
 				} else if (Array.isArray(vSourceProperty)) {
 					// copy complete collection w/o firing change events
 					oTarget[sProperty] = vSourceProperty;
 				} else if (vSourceProperty && typeof vSourceProperty === "object") {
 					oTarget[sProperty]
 						= _Helper.updateAll(mChangeListeners, sPropertyPath, vTargetProperty || {},
-								vSourceProperty, fnCheckKeyPredicate);
+								vSourceProperty);
 				} else if (vTargetProperty !== vSourceProperty) {
 					oTarget[sProperty] = vSourceProperty;
 					if (vTargetProperty && typeof vTargetProperty === "object") {
@@ -1947,6 +2683,8 @@ sap.ui.define([
 		 * @param {string} sPath The path of the old object in mChangeListeners
 		 * @param {object} oOldObject The old object
 		 * @param {object} [oNewObject] The new object
+		 *
+		 * @public
 		 */
 		updateExisting : function (mChangeListeners, sPath, oOldObject, oNewObject) {
 			if (!oNewObject) {
@@ -2005,6 +2743,87 @@ sap.ui.define([
 		},
 
 		/**
+		 * Determines whether the response is a deep create response. Copies nested collections from
+		 * the response into the target object and adjusts their additional properties ($count,
+		 * $created, $byPredicate). Single nested entities are not copied here, assuming that they
+		 * are updated together with the top-level entity (because with a deep create all properties
+		 * incl. single-valued navigation properties are accepted).
+		 *
+		 * Note that this completely recreates nested collections destroying the previous transient
+		 * elements. This is because the response may differ significantly from the request
+		 * regarding order and count.
+		 *
+		 * @param {object} mChangeListeners - A map of change listeners by path
+		 * @param {object} mQueryOptions - The query options
+		 * @param {string} sPath
+		 *   The path of the target entity relative to mChangeListeners and mQueryOptions
+		 * @param {object} oTargetEntity - The target entity
+		 * @param {object} oCreatedEntity - The created entity from the response
+		 * @param {object} mSelectForMetaPath
+		 *   A map of $select properties per meta path of the nested collections
+		 * @returns {boolean} Whether there actually was a deep create
+		 *
+		 * @private
+		 */
+		updateNestedCreates : function (mChangeListeners, mQueryOptions, sPath, oTargetEntity,
+				oCreatedEntity, mSelectForMetaPath) {
+			let bDeepCreate = false;
+
+			// single-valued
+			const mQueryOptionsForEntity = _Helper.getQueryOptionsForPath(mQueryOptions, sPath);
+			Object.keys(mQueryOptionsForEntity.$expand || {}).forEach(function (sExpandPath) {
+				const oNestedTargetEntity = _Helper.drillDown(oTargetEntity, sExpandPath);
+				// sent and single-valued
+				if (oNestedTargetEntity && !Array.isArray(oNestedTargetEntity)) {
+					bDeepCreate = true; // they are updated with the top-level entity
+				}
+			});
+
+			// collection-valued
+			Object.keys(mSelectForMetaPath || {}).filter(function (sMetaPath) {
+				return !sMetaPath.includes("/"); // only look at the direct descendants
+			}).forEach(function (sSegment) {
+				const aNestedCreatedEntities = oCreatedEntity[sSegment];
+				if (!aNestedCreatedEntities) { // create not called in this nested collection
+					// #addTransientEntity added this in preparation of a deep create
+					delete oTargetEntity[sSegment];
+					return;
+				}
+
+				// copy the collection into the target entity and set the additional properties
+				oTargetEntity[sSegment] = aNestedCreatedEntities;
+				aNestedCreatedEntities.$count = undefined; // -> setCount must fire a change event
+				aNestedCreatedEntities.$created = 0;
+				aNestedCreatedEntities.$byPredicate = {};
+				const sCollectionPath = sPath + "/" + sSegment;
+				_Helper.setCount(mChangeListeners, sCollectionPath, aNestedCreatedEntities,
+					aNestedCreatedEntities.length);
+				// build the next level
+				const mSelectForChildMetaPath = {};
+				const sPrefix = sSegment + "/";
+				Object.keys(mSelectForMetaPath).forEach(function (sMetaPath) {
+					if (sMetaPath.startsWith(sPrefix)) {
+						mSelectForChildMetaPath[sMetaPath.slice(sPrefix.length)]
+							= mSelectForMetaPath[sMetaPath];
+					}
+				});
+				aNestedCreatedEntities.forEach(function (oCreatedChildEntity) {
+					const sPredicate
+						= _Helper.getPrivateAnnotation(oCreatedChildEntity, "predicate");
+					aNestedCreatedEntities.$byPredicate[sPredicate] = oCreatedChildEntity;
+					// recurse for $count, $byPredicate of nested collections
+					_Helper.updateNestedCreates(mChangeListeners, mQueryOptions,
+						sCollectionPath + sPredicate, oCreatedChildEntity, oCreatedChildEntity,
+						mSelectForChildMetaPath);
+				});
+
+				bDeepCreate = true;
+			});
+
+			return bDeepCreate;
+		},
+
+		/**
 		 * Recursively adds all properties of oSource to oTarget that do not exist there yet.
 		 * Ensures that object references in oTarget remain unchanged.
 		 *
@@ -2016,6 +2835,8 @@ sap.ui.define([
 		 *
 		 * @param {object} oTarget - The target
 		 * @param {object} oSource - The source
+		 *
+		 * @public
 		 */
 		updateNonExisting : function (oTarget, oSource) {
 			Object.keys(oSource).forEach(function (sKey) {
@@ -2036,9 +2857,12 @@ sap.ui.define([
 
 		/**
 		 * Updates the old value with the given new value for the selected properties (see
-		 * {@link #updateExisting}). If no selected properties are given or if "*" is contained in
-		 * the selected properties, then all properties are selected. Fires change events for all
-		 * changed properties.
+		 * {@link #updateExisting}). If a property is missing in the new value, the old value
+		 * remains unchanged. If no selected properties are given or if "*" is contained in the
+		 * selected properties, then all properties are selected. Fires change events for all
+		 * changed properties. An instance annotation is updated if the instance (which would be a
+		 * complex-valued structural property then) or one of its properties is selected, a property
+		 * annotation is updated if the property itself is selected.
 		 *
 		 * Restrictions:
 		 * - oOldValue and oNewValue are expected to have the same structure: when there is an
@@ -2050,7 +2874,7 @@ sap.ui.define([
 		 *
 		 * @param {object} mChangeListeners
 		 *   A map of change listeners by path
-		 * @param {string} sPath
+		 * @param {string} sBasePath
 		 *   The path of oOldValue in mChangeListeners
 		 * @param {object} oOldValue
 		 *   The old value
@@ -2059,57 +2883,130 @@ sap.ui.define([
 		 * @param {string[]} [aSelect]
 		 *   The relative paths to properties to be updated in oOldValue; default is all properties
 		 *   from oNewValue
+		 * @param {function} [fnCheckKeyPredicate]
+		 *   Callback function which tells whether the key predicate for the given path is checked
+		 *   for equality instead of just being copied from source to target
+		 * @param {boolean} [bOkIfMissing]
+		 *   Whether this should not check for selected properties missing in the response
+		 *
+		 * @public
 		 */
-		updateSelected : function (mChangeListeners, sPath, oOldValue, oNewValue, aSelect) {
+		updateSelected : function (mChangeListeners, sBasePath, oOldValue, oNewValue, aSelect,
+			fnCheckKeyPredicate, bOkIfMissing) {
 			/*
-			 * Take over the property value from source to target and fires an event if the property
-			 * is changed
-			 * @param {string} sPropertyPath The property path
-			 * @param {object} oSource The source object
-			 * @param {object} oTarget The target object
+			 * Gets the property's value in vSelect. Instance annotations are always selected,
+			 * property annotations only if the property is selected.
+			 * @param {object|boolean} vSelect
+			 *   The result from _Helper.buildSelect or true if the complex structure is selected
+			 * @param {string} sProperty
+			 *   The property name
+			 * @returns {object|boolean|undefined}
+			 *   undefined to ignore, {} to update it w/o event, true to update w/ event
 			 */
-			function copyPathValue(sPropertyPath, oSource, oTarget) {
-				var aSegments = sPropertyPath.split("/");
+			function getSelect(vSelect, sProperty) {
+				var iAt;
 
-				aSegments.every(function (sSegment, iIndex) {
-					var vSourceProperty = oSource[sSegment],
-						vTargetProperty = oTarget[sSegment];
+				if (vSelect === true) {
+					return true;
+				}
+				if (vSelect[sProperty]) {
+					return vSelect[sProperty];
+				}
+				iAt = sProperty.indexOf("@");
+				if (iAt === 0 || iAt > 0 && vSelect[sProperty.slice(0, iAt)]) {
+					return true; // always fire changes for selected annotations
+				}
+			}
 
-					if (Array.isArray(vSourceProperty)) {
-						// copy complete collection; no change events as long as collection-valued
-						// properties are not supported
-						oTarget[sSegment] = vSourceProperty;
-					} else if (vSourceProperty && typeof vSourceProperty === "object") {
-						oTarget = oTarget[sSegment] = vTargetProperty || {};
-						oSource = vSourceProperty;
-						return true;
-					} else if (vTargetProperty !== vSourceProperty) {
-						oTarget[sSegment] = vSourceProperty;
-						if (vTargetProperty && typeof vTargetProperty === "object") {
-							_Helper.fireChanges(mChangeListeners,
-								_Helper.buildPath(sPath, aSegments.slice(0, iIndex + 1).join("/")),
-								vTargetProperty, true);
-						} else if (iIndex === aSegments.length - 1) {
-							_Helper.fireChange(mChangeListeners,
-								_Helper.buildPath(sPath, sPropertyPath), vSourceProperty);
-						}
-						// else a change from undefined to null where an object is expected along a
-						// property path from aSelect
+			/*
+			 * The recursive update function.
+			 * @param {string} sPath - The path of oTarget in the cache
+			 * @param {object|boolean} vSelect
+			 *   The result from _Helper.buildSelect or true if the complex structure is selected
+			 * @param {object} oTarget - The update target
+			 * @param {object} oSource - The update source
+			 * @returns {object} oTarget
+			 */
+			function update(sPath, vSelect, oTarget, oSource) {
+				// Remove annotations that are selected, but not in oSource anymore; except client
+				// annotations
+				Object.keys(oTarget).forEach(function (sProperty) {
+					if (!(sProperty in oSource) && sProperty.includes("@")
+							&& !sProperty.startsWith("@$ui5.") && getSelect(vSelect, sProperty)
+							&& !sProperty.endsWith("@$ui5.updating")
+						) {
+						delete oTarget[sProperty];
+						_Helper.fireChange(mChangeListeners, _Helper.buildPath(sPath, sProperty),
+							undefined);
 					}
-					return false;
 				});
+
+				// The actual update loop
+				Object.keys(oSource).forEach(function (sProperty) {
+					var sPropertyPath = _Helper.buildPath(sPath, sProperty),
+						vSelected = getSelect(vSelect, sProperty),
+						sSourcePredicate,
+						vSourceProperty = oSource[sProperty],
+						sTargetPredicate,
+						vTargetProperty = oTarget[sProperty];
+
+					if (!vSelected) {
+						return;
+					}
+					if (sProperty === "@$ui5._") {
+						sSourcePredicate = _Helper.getPrivateAnnotation(oSource, "predicate");
+						if (fnCheckKeyPredicate && fnCheckKeyPredicate(sPath)) {
+							sTargetPredicate = _Helper.getPrivateAnnotation(oTarget, "predicate");
+							if (sSourcePredicate !== sTargetPredicate) {
+								throw new Error("Key predicate of '" + sPath + "' changed from "
+									+ sTargetPredicate + " to " + sSourcePredicate);
+							}
+						} else {
+							_Helper.setPrivateAnnotation(oTarget, "predicate", sSourcePredicate);
+						}
+					} else if (Array.isArray(vSourceProperty)) {
+						// copy complete collection; no change events as long as collection-valued
+						// properties are not supported; transient entity collections from a deep
+						// create are handled elsewhere
+						if (!(vTargetProperty && vTargetProperty.$postBodyCollection)) {
+							oTarget[sProperty] = vSourceProperty;
+						}
+					} else if (vSourceProperty && typeof vSourceProperty === "object"
+							&& !sProperty.includes("@")) {
+						oTarget[sProperty] = update(sPropertyPath, vSelected, vTargetProperty || {},
+							vSourceProperty);
+					} else if (vTargetProperty !== vSourceProperty
+							&& !oTarget[sProperty + "@$ui5.updating"]) {
+						oTarget[sProperty] = vSourceProperty;
+						if (vTargetProperty && typeof vTargetProperty === "object") {
+							// a complex property is replaced by null
+							_Helper.fireChanges(mChangeListeners, sPropertyPath, vTargetProperty,
+								true);
+						} else if (vSelected === true) {
+							_Helper.fireChange(mChangeListeners, sPropertyPath, vSourceProperty);
+						}
+					}
+				});
+
+				if (bOkIfMissing) {
+					return oTarget;
+				}
+
+				// Create annotations for a property which was selected but no data was received
+				Object.keys(vSelect).forEach(function (sProperty) {
+					if (!(sProperty in oTarget) && sProperty !== "*") {
+						oTarget[sProperty + "@$ui5.noData"] = true;
+						// Fire change event (useful for Edm.Stream in case of the URL stays the
+						// same, but the content was changed)
+						_Helper.fireChange(mChangeListeners, _Helper.buildPath(sPath, sProperty),
+							undefined, true);
+					}
+				});
+
+				return oTarget;
 			}
 
-			if (!aSelect || aSelect.indexOf("*") >= 0) {
-				// no individual properties selected, fetch all properties of the new value
-				_Helper.updateAll(mChangeListeners, sPath, oOldValue, oNewValue);
-				return;
-			}
-
-			// take over properties from the new value and fire change events
-			aSelect.forEach(function (sProperty) {
-				copyPathValue(sProperty, oNewValue, oOldValue);
-			});
+			update(sBasePath, _Helper.buildSelect(aSelect), oOldValue, oNewValue);
 		},
 
 		/**
@@ -2122,6 +3019,8 @@ sap.ui.define([
 		 *   A (temporary) key predicate for the transient entity: "($uid=...)"
 		 * @param {string} sPredicate
 		 *   The key predicate
+		 *
+		 * @public
 		 */
 		updateTransientPaths : function (mMap, sTransientPredicate, sPredicate) {
 			var sPath;
@@ -2160,6 +3059,8 @@ sap.ui.define([
 		 * @returns {object|undefined} The query options for the child binding or
 		 *   <code>undefined</code> in case the query options cannot be created, e.g. because $apply
 		 *   cannot be wrapped into $expand
+		 *
+		 * @public
 		 */
 		wrapChildQueryOptions : function (sBaseMetaPath, sChildMetaPath, mChildQueryOptions,
 				fnFetchMetadata) {
@@ -2178,9 +3079,19 @@ sap.ui.define([
 			for (i = 0; i < aMetaPathSegments.length; i += 1) {
 				sPropertyMetaPath = _Helper.buildPath(sPropertyMetaPath, aMetaPathSegments[i]);
 				sExpandSelectPath = _Helper.buildPath(sExpandSelectPath, aMetaPathSegments[i]);
+				if (aMetaPathSegments[i].endsWith("*")) {
+					oProperty = null;
+					continue; // no, don't break! fail in case path continues
+				}
 				oProperty = fnFetchMetadata(sPropertyMetaPath).getResult();
 				if (oProperty.$kind === "NavigationProperty") {
 					mQueryOptionsForPathPrefix.$expand = {};
+					if (i === aMetaPathSegments.length - 1) {
+						// avoid that mChildQueryOptions.$select is modified by selectKeyProperties
+						mChildQueryOptions = Object.assign({}, mChildQueryOptions);
+						mChildQueryOptions.$select = mChildQueryOptions.$select
+							&& mChildQueryOptions.$select.slice();
+					}
 					mQueryOptionsForPathPrefix
 						= mQueryOptionsForPathPrefix.$expand[sExpandSelectPath]
 						= (i === aMetaPathSegments.length - 1) // last segment in path
@@ -2193,8 +3104,8 @@ sap.ui.define([
 					return undefined;
 				}
 			}
-			if (oProperty.$kind === "Property") {
-				if (Object.keys(mChildQueryOptions).length > 0) {
+			if (!oProperty || oProperty.$kind === "Property") {
+				if (!isEmptyObject(mChildQueryOptions)) {
 					Log.error("Failed to enhance query options for auto-$expand/$select as the"
 							+ " child binding has query options, but its path '" + sChildMetaPath
 							+ "' points to a structural property",

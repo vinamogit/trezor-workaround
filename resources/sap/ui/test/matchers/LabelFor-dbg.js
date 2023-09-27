@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
@@ -154,8 +154,8 @@ sap.ui.define([
 				return false;
 			}
 
-			var fnLabelType = this._getApplicationWindow().jQuery.sap.getObject("sap.m.Label");
-			var aLabelsInPage = this._getApplicationWindow().sap.ui.core.Element.registry.filter(function (oElement) {
+			var fnLabelType = this._getApplicationWindow().sap.ui.require("sap/m/Label");
+			var aLabelsInPage = this._getApplicationWindow().sap.ui.require("sap/ui/core/Element").registry.filter(function (oElement) {
 				return oElement instanceof fnLabelType;
 			});
 
@@ -172,6 +172,7 @@ sap.ui.define([
 				} else if (sLabelText && oLabel.getText() === sLabelText) {
 					return oControl.getId() === oLabel.getLabelForRendering();
 				}
+				return false;
 			});
 
 			if (!bIsMatching) {

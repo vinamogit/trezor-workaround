@@ -1,14 +1,15 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides default renderer for control sap.m.Text
-sap.ui.define([],
-	function() {
+sap.ui.define([
+	"sap/ui/core/Core"
+],
+	function(Core) {
 	"use strict";
-
 
 	/**
 	 * Text renderer.
@@ -22,10 +23,11 @@ sap.ui.define([],
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 * @param {sap.ui.core.RenderManager} rm The RenderManager that can be used for writing to the render output buffer
-	 * @param {sap.ui.core.Control} oControl An object representation of the control that should be rendered
+	 * @param {sap.m.Tile} oControl An object representation of the control that should be rendered
 	 */
 	TileRenderer.render = function(rm, oControl) {
-		var oTileContainer,
+		var oRB = Core.getLibraryResourceBundle("sap.m"),
+			oTileContainer,
 			aVisibleTiles;
 
 		rm.openStart("div", oControl);
@@ -41,7 +43,7 @@ sap.ui.define([],
 		}
 
 		/* WAI ARIA if in TileContainer context */
-		if (oControl.getParent() instanceof sap.m.TileContainer) {
+		if (oControl.getParent() && oControl.getParent().isA("sap.m.TileContainer")) {
 			oTileContainer = oControl.getParent();
 			aVisibleTiles = oTileContainer._getVisibleTiles();
 
@@ -55,6 +57,7 @@ sap.ui.define([],
 		rm.openEnd();
 		rm.openStart("div", oControl.getId() + "-remove");
 		rm.class(oControl.getRemovable() ? "sapMTCRemove" : "sapMTCNoRemove");
+		rm.attr("title", oRB.getText("GENERICTILE_REMOVEBUTTON_TEXT"));
 		rm.openEnd().close("div");
 		rm.openStart("div").class("sapMTileContent").openEnd();
 		this._renderContent(rm, oControl);

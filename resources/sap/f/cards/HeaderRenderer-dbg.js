@@ -1,15 +1,17 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
-sap.ui.define([], function () {
+sap.ui.define([
+	"sap/f/cards/BaseHeaderRenderer",
+	"sap/ui/core/Renderer"
+], function (BaseHeaderRenderer, Renderer) {
 	"use strict";
 
-	var HeaderRenderer = {
-		apiVersion: 2
-	};
+	var HeaderRenderer = Renderer.extend(BaseHeaderRenderer);
+	HeaderRenderer.apiVersion = 2;
 
 	/**
 	 * Render a header.
@@ -18,47 +20,49 @@ sap.ui.define([], function () {
 	 * @param {sap.f.cards.Header} oHeader An object representation of the control that should be rendered
 	 */
 	HeaderRenderer.render = function (oRm, oHeader) {
-		var oBindingInfos = oHeader.mBindingInfos,
+		var sId = oHeader.getId(),
+			oBindingInfos = oHeader.mBindingInfos,
 			sStatus = oHeader.getStatusText(),
 			oTitle = oHeader.getAggregation("_title"),
 			oSubtitle = oHeader.getAggregation("_subtitle"),
 			bHasSubtitle = oHeader.getSubtitle() || oBindingInfos.subtitle,
-			oAvatar = oHeader.getAggregation("_avatar"),
 			oDataTimestamp = oHeader.getAggregation("_dataTimestamp"),
 			bHasDataTimestamp = oHeader.getDataTimestamp() || oBindingInfos.dataTimestamp,
 			bLoading = oHeader.isLoading(),
 			oError = oHeader.getAggregation("_error"),
 			oToolbar = oHeader.getToolbar(),
-			sTabIndex = oHeader._isInsideGridContainer() ? "-1" : "0";
+			bUseTileLayout = oHeader.getProperty("useTileLayout");
 
 		oRm.openStart("div", oHeader)
-			.attr("tabindex", sTabIndex)
 			.class("sapFCardHeader");
 
 		if (bLoading) {
 			oRm.class("sapFCardHeaderLoading");
 		}
 
-		if (oHeader.hasListeners("press")) {
-			oRm.class("sapFCardClickable");
+		if (oHeader.isInteractive()) {
+			oRm.class("sapFCardSectionClickable");
 		}
 
-		if (oError) {
-			oRm.class("sapFCardHeaderError");
-		}
-
-		//Accessibility state
-		oRm.accessibilityState(oHeader, {
-			role: oHeader.getAriaRole(),
-			labelledby: { value: oHeader._getAriaLabelledBy(), append: true },
-			roledescription: { value: oHeader.getAriaRoleDescription(), append: true },
-			level: { value: oHeader.getAriaHeadingLevel() }
-		});
 		oRm.openEnd();
 
 		oRm.openStart("div")
-			.class("sapFCardHeaderWrapper")
-			.openEnd();
+			.attr("id", sId + "-focusable")
+			.class("sapFCardHeaderWrapper");
+
+		if (oHeader.getProperty("focusable") && !oHeader._isInsideGridContainer()) {
+			oRm.attr("tabindex", "0");
+		}
+
+		if (!oHeader._isInsideGridContainer()) {
+			oRm.accessibilityState({
+				labelledby: {value: oHeader._getAriaLabelledBy(), append: true},
+				role: oHeader.getFocusableElementAriaRole(),
+				roledescription: oHeader.getAriaRoleDescription()
+			});
+		}
+
+		oRm.openEnd();
 
 		if (oError) {
 			oRm.renderControl(oError);
@@ -68,17 +72,8 @@ sap.ui.define([], function () {
 			return;
 		}
 
-		if (oHeader.getIconSrc() || oHeader.getIconInitials() || oBindingInfos.iconSrc) {
-			oRm.openStart("div")
-				.class("sapFCardHeaderImage")
-				.openEnd();
-
-			if (oBindingInfos.iconSrc && oBindingInfos.iconSrc.binding && !oBindingInfos.iconSrc.binding.getValue()) {
-				oAvatar.addStyleClass("sapFCardHeaderItemBinded");
-			}
-			oRm.renderControl(oAvatar);
-			oRm.renderControl(oHeader._oAriaAvatarText);
-			oRm.close("div");
+		if (!bUseTileLayout) {
+			BaseHeaderRenderer.renderAvatar(oRm, oHeader);
 		}
 
 		oRm.openStart("div")
@@ -96,8 +91,8 @@ sap.ui.define([], function () {
 
 			oRm.renderControl(oTitle);
 
-			if (sStatus !== undefined) {
-				oRm.openStart("span", oHeader.getId() + "-status")
+			if (sStatus && oHeader.getStatusVisible()) {
+				oRm.openStart("span", sId + "-status")
 					.class("sapFCardStatus");
 
 				if (oBindingInfos.statusText) {
@@ -140,13 +135,18 @@ sap.ui.define([], function () {
 
 		oRm.close("div");
 
+		if (bUseTileLayout) {
+			BaseHeaderRenderer.renderAvatar(oRm, oHeader);
+		}
+
+		BaseHeaderRenderer.renderBanner(oRm, oHeader);
+
 		oRm.close("div");
 
 		if (oToolbar) {
 			oRm.openStart("div")
 				.class("sapFCardHeaderToolbarCont")
 				.openEnd();
-
 			oRm.renderControl(oToolbar);
 
 			oRm.close("div");

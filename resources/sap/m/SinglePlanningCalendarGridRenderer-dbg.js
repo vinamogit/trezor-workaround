@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -11,7 +11,9 @@ sap.ui.define([
 	'sap/ui/core/IconPool',
 	'sap/ui/core/InvisibleText',
 	'./PlanningCalendarLegend',
-	'sap/ui/unified/library'
+	'sap/ui/unified/library',
+	'sap/ui/core/Configuration',
+	"sap/ui/core/date/UI5Date"
 	],
 	function(
 		CalendarDate,
@@ -20,7 +22,10 @@ sap.ui.define([
 		IconPool,
 		InvisibleText,
 		PlanningCalendarLegend,
-		unifiedLibrary) {
+		unifiedLibrary,
+		Configuration,
+		UI5Date
+		) {
 		"use strict";
 
 		var iVerticalPaddingBetweenAppointments = 0.125;
@@ -42,7 +47,7 @@ sap.ui.define([
 		 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 		 *
 		 * @param {sap.ui.core.RenderManager} oRm The RenderManager that can be used for writing to the render output buffer
-		 * @param {sap.ui.core.Control} oControl An object representation of the control that should be rendered
+		 * @param {sap.m.SinglePlanningCalendarGrid} oControl An object representation of the control that should be rendered
 		 */
 		SinglePlanningCalendarGridRenderer.render = function (oRm, oControl) {
 			oRm.openStart("div", oControl);
@@ -73,7 +78,6 @@ sap.ui.define([
 				aDayTypes = oControl._getColumnHeaders()._getDateTypes(oCalendarDate),
 				oType,
 				sLegendItemType;
-
 
 			oRm.openStart("div");
 			oRm.attr("role", "grid");
@@ -112,6 +116,9 @@ sap.ui.define([
 				oRm.class("sapMSinglePCBlockersColumn");
 				oRm.attr("tabindex", -1);
 
+				if (oControl._checkDateSelected(oColumnCalDate) && iColumns > 1) {
+					this.renderSelectedRowBorders(oRm, oControl, i, oColumnCalDate, iColumns, "Blocker");
+				}
 				if (oColumnCalDate.isSame(new CalendarDate())) {
 					oRm.class("sapMSinglePCBlockersColumnToday");
 				}
@@ -137,6 +144,30 @@ sap.ui.define([
 			this.renderBlockers(oRm, oControl);
 			oRm.close("div"); // END .sapMSinglePCColumns
 			oRm.close("div"); // END .sapMSinglePCGridBlockers
+		};
+
+		SinglePlanningCalendarGridRenderer.renderSelectedRowBorders = function (oRm, oControl, i, oColumnCalDate, iColumns, suffix) {
+			var oPrevClumnCalDate = new CalendarDate(oColumnCalDate.toLocalJSDate().getFullYear(), oColumnCalDate.toLocalJSDate().getMonth(), oColumnCalDate.toLocalJSDate().getDate() - 1);
+			var oNextClumnCalDate = new CalendarDate(oColumnCalDate.toLocalJSDate().getFullYear(), oColumnCalDate.toLocalJSDate().getMonth(), oColumnCalDate.toLocalJSDate().getDate() + 1);
+			oRm.class("sapUiCalColumnSelected");
+
+			if (i == 0 && oControl._checkDateSelected(oNextClumnCalDate)) {
+				oRm.class("sapUiCalColumnSelectedStart" + suffix);
+			} else if (i == 0 && !oControl._checkDateSelected(oNextClumnCalDate)) {
+				oRm.class("sapUiCalColumnSingleSelect" + suffix);
+			} else if (i === iColumns - 1 && oControl._checkDateSelected(oPrevClumnCalDate)) {
+				oRm.class("sapUiCalColumnSelectedEnd" + suffix);
+			} else if (i === iColumns - 1 && !oControl._checkDateSelected(oPrevClumnCalDate)) {
+				oRm.class("sapUiCalColumnSingleSelect" + suffix);
+			} else if (oControl._checkDateSelected(oPrevClumnCalDate) && oControl._checkDateSelected(oNextClumnCalDate)){
+				oRm.class("sapUiCalColumnSelectedBetween" + suffix);
+			} else if (oControl._checkDateSelected(oPrevClumnCalDate)) {
+				oRm.class("sapUiCalColumnSelectedEnd" + suffix);
+			} else if (oControl._checkDateSelected(oNextClumnCalDate)) {
+				oRm.class("sapUiCalColumnSelectedStart" + suffix);
+			} else {
+				oRm.class("sapUiCalColumnSingleSelect" + suffix);
+			}
 		};
 
 		SinglePlanningCalendarGridRenderer.renderBlockers = function (oRm, oControl) {
@@ -186,7 +217,7 @@ sap.ui.define([
 				aAriaLabels = oControl.getAriaLabelledBy(),
 				iLeftPosition = iStartDayDiff * (100 / iColumns),
 				iRightPosition = (iColumns - iEndDayDiff - 1) * (100 / iColumns),
-				bIsRTL = sap.ui.getCore().getConfiguration().getRTL(),
+				bIsRTL = Configuration.getRTL(),
 				aClasses;
 
 			if (aAriaLabels.length > 0) {
@@ -227,7 +258,7 @@ sap.ui.define([
 				oRm.class("sapUiCalendarApp" + sType);
 			}
 			if (sColor) {
-				if (sap.ui.getCore().getConfiguration().getRTL()) {
+				if (Configuration.getRTL()) {
 					oRm.style("border-right-color", sColor);
 				} else {
 					oRm.style("border-left-color", sColor);
@@ -310,7 +341,7 @@ sap.ui.define([
 		SinglePlanningCalendarGridRenderer.renderRowHeaders = function (oRm, oControl) {
 			var iStartHour = oControl._getVisibleStartHour(),
 				iEndHour = oControl._getVisibleEndHour(),
-				oStartDate = new Date(),
+				oStartDate = UI5Date.getInstance(),
 				oHoursFormat = oControl._getHoursFormat(),
 				oAMPMFormat = oControl._getAMPMFormat();
 
@@ -329,6 +360,7 @@ sap.ui.define([
 				}
 
 				oRm.openEnd();
+
 				oRm.text(oHoursFormat.format(oStartDate));
 
 				if (oControl._hasAMPM()) {
@@ -358,7 +390,7 @@ sap.ui.define([
 
 			for (var i = 0; i < iColumns; i++) {
 				var oColumnCalDate = new CalendarDate(oStartDate.getFullYear(), oStartDate.getMonth(), oStartDate.getDate() + i),
-				oFormat = oControl._getDateFormatter(),
+					oFormat = oControl._getDateFormatter(),
 					sDate = oFormat.format(oColumnCalDate.toLocalJSDate());
 
 				oRm.openStart("div");
@@ -366,11 +398,15 @@ sap.ui.define([
 				oRm.attr("data-sap-day", sDate);
 				oRm.class("sapMSinglePCColumn");
 
+				if (oControl._checkDateSelected(oColumnCalDate) && iColumns > 1) {
+					this.renderSelectedRowBorders(oRm, oControl, i, oColumnCalDate, iColumns, "Column");
+				}
+
 				if (oColumnCalDate.isSame(new CalendarDate())) {
 					oRm.class("sapMSinglePCColumnToday");
 				}
 
-				if (CalendarUtils._isWeekend(oColumnCalDate, oControl._getCoreLocaleData())) {
+				if (CalendarUtils._isWeekend(oColumnCalDate, oControl._getCoreLocaleData()) || oControl._isNonWorkingDay(oColumnCalDate)) {
 					oRm.class("sapMSinglePCColumnWeekend");
 				}
 
@@ -403,12 +439,11 @@ sap.ui.define([
 
 			for (var i = iStartHour; i <= iEndHour; i++) {
 				oCellStartDate = oControl._parseDateStringAndHours(sDate, i);
-				oCellEndDate = new Date(oCellStartDate.getFullYear(), oCellStartDate.getMonth(), oCellStartDate.getDate(), oCellStartDate.getHours() + 1);
+				oCellEndDate = UI5Date.getInstance(oCellStartDate.getFullYear(), oCellStartDate.getMonth(), oCellStartDate.getDate(), oCellStartDate.getHours() + 1);
 
 				oRm.openStart("div");
 				oRm.attr("role", "gridcell");
 				oRm.class("sapMSinglePCRow");
-
 				if (!oControl._isVisibleHour(i)) {
 					oRm.class("sapMSinglePCNonWorkingRow");
 				}
@@ -488,6 +523,8 @@ sap.ui.define([
 				iAppBottom = bAppEndIsOutsideVisibleEndHour ? 0 : oControl._calculateBottomPosition(oAppEndDate),
 				iAppChunkWidth = 100 / (iMaxLevel + 1),
 				bDraggable = oAppointment.getParent().getEnableAppointmentsDragAndDrop(),
+				iScaleFactor = oControl.getProperty("scaleFactor"),
+				iDivider = 2 * iScaleFactor,
 				iStartDayDiff,
 				iEndDayDiff,
 				bArrowLeft,
@@ -541,7 +578,7 @@ sap.ui.define([
 				oRm.class("sapUiCalendarApp" + sType);
 			}
 			if (sColor) {
-				if (sap.ui.getCore().getConfiguration().getRTL()) {
+				if (Configuration.getRTL()) {
 					oRm.style("border-right-color", sColor);
 				} else {
 					oRm.style("border-left-color", sColor);
@@ -549,14 +586,13 @@ sap.ui.define([
 			}
 			oRm.style("top", iAppTop + "rem");
 			oRm.style("bottom", iAppBottom + "rem");
-			oRm.style(sap.ui.getCore().getConfiguration().getRTL() ? "right" : "left", iAppChunkWidth * iAppointmentLevel + "%");
+			oRm.style(Configuration.getRTL() ? "right" : "left", iAppChunkWidth * iAppointmentLevel + "%");
 			oRm.style("width", iAppChunkWidth * iAppointmentWidth + "%"); // TODO: take into account the levels
 			oRm.openEnd();
 
 			oRm.openStart("div");
 			oRm.class("sapUiCalendarApp");
-
-			oRm.style("min-height", (iRowHeight - (iVerticalPaddingBetweenAppointments + iAppointmentBottomPadding + iAppointmentTopPadding)) / 2 + "rem");
+			oRm.style("min-height", (iRowHeight - ((iVerticalPaddingBetweenAppointments + iAppointmentBottomPadding + iAppointmentTopPadding) * iScaleFactor)) / iDivider + "rem");
 
 			if (oAppointment.getSelected()) {
 				oRm.class("sapUiCalendarAppSel");
@@ -648,8 +684,8 @@ sap.ui.define([
 			}
 
 			// ARIA information about start and end
-			// var sAriaText = oRow._oRb.getText("CALENDAR_START_TIME") + ": " + oRow._oFormatAria.format(oAppointment.getStartDate());
-			// sAriaText = sAriaText + "; " + oRow._oRb.getText("CALENDAR_END_TIME") + ": " + oRow._oFormatAria.format(oAppointment.getEndDate());
+			// var sAriaText = oRow._oRb.getText("CALENDAR_START_TIME") + ": " + oRow._oFormatAria.format(oAppointment._getStartDateWithTimezoneAdaptation());
+			// sAriaText = sAriaText + "; " + oRow._oRb.getText("CALENDAR_END_TIME") + ": " + oRow._oFormatAria.format(oAppointment._getEndDateWithTimezoneAdaptation());
 			// if (sTooltip) {
 			// 	sAriaText = sAriaText + "; " + sTooltip;
 			// }
@@ -676,7 +712,7 @@ sap.ui.define([
 		};
 
 		SinglePlanningCalendarGridRenderer.renderNowMarker = function (oRm, oControl) {
-			var oDate = new Date();
+			var oDate = UI5Date.getInstance();
 
 			oRm.openStart("div", oControl.getId() + "-nowMarker");
 			oRm.style("top", oControl._calculateTopPosition(oDate) + "rem");
@@ -723,7 +759,7 @@ sap.ui.define([
 		 *
 		 * @param {Date} oAppStartDate start date of the appointment
 		 * @param {Date} oAppEndDate end date of the appointment
-		 * @return {String} Returns maximum allowed rows for the appointment as string
+		 * @return {string} Returns maximum allowed rows for the appointment as string
 		 * @private
 		 */
 		SinglePlanningCalendarGridRenderer._getLineClamp = function (oAppStartDate, oAppEndDate) {

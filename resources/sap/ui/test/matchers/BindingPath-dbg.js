@@ -1,14 +1,14 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 sap.ui.define([
-	'sap/ui/thirdparty/jquery',
+	"sap/base/util/isPlainObject",
 	'sap/ui/test/matchers/Matcher',
 	'sap/ui/model/StaticBinding'
-], function ($, Matcher, StaticBinding) {
+], function (isPlainObject, Matcher, StaticBinding) {
 	"use strict";
 
 	/**
@@ -205,7 +205,7 @@ sap.ui.define([
 	});
 
 	function _pathMatches(sPath, vMatcherPath, bWithContext) {
-		if ($.isPlainObject(vMatcherPath) && vMatcherPath.regex && vMatcherPath.regex.source) {
+		if (isPlainObject(vMatcherPath) && vMatcherPath.regex && vMatcherPath.regex.source) {
 			// declarative syntax
 			vMatcherPath = new RegExp(vMatcherPath.regex.source, vMatcherPath.regex.flags);
 		}

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -8,7 +8,7 @@
 sap.ui.define([
 	"./WaiterBase",
 	"sap/ui/thirdparty/jquery"
-], function (WaiterBase, jQueryDOM) {
+], function (WaiterBase, jQuery) {
 	"use strict";
 
 	var STATE = {
@@ -59,7 +59,7 @@ sap.ui.define([
 		},
 		hasPending: function () {
 			var aPendingModules = this._aModules.filter(function (mModule) {
-				if (!jQueryDOM(mModule.script).length) {
+				if (!jQuery(mModule.script).length) {
 					this._oLogger.trace("Script with src '" + mModule.src + "' was removed");
 					return false;
 				}

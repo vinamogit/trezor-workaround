@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -16,7 +16,8 @@ sap.ui.define([
 	"sap/ui/events/KeyCodes",
 	'sap/ui/Device',
 	'sap/ui/core/library',
-	"sap/ui/thirdparty/jquery"
+	"sap/ui/thirdparty/jquery",
+    'sap/ui/core/date/UI5Date'
 ],
 	function(
 		TimePickerInternals,
@@ -30,7 +31,8 @@ sap.ui.define([
 		KeyCodes,
 		Device,
 		coreLibrary,
-		jQuery
+		jQuery,
+        UI5Date
 	) {
 		"use strict";
 
@@ -50,7 +52,7 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @public
@@ -70,7 +72,9 @@ sap.ui.define([
 					 */
 					_clocks: { type: "sap.m.TimePickerClock", multiple: true, visibility: "hidden" }
 				}
-			}
+			},
+
+			renderer: TimePickerClocksRenderer
 		});
 
 		/*********************************************************************************************************
@@ -466,7 +470,7 @@ sap.ui.define([
 		/**
 		 * Gets the time values from the clocks, as a date object.
 		 *
-		 * @returns {Date} A JavaScript date object
+		 * @returns {Date|module:sap/ui/core/date/UI5Date} A date instance
 		 * @public
 		 */
 		TimePickerClocks.prototype.getTimeValues = function() {
@@ -476,7 +480,7 @@ sap.ui.define([
 				oFormatButton = this._getFormatButton(),
 				iHours = null,
 				sAmpm = null,
-				oDateValue = new Date();
+				oDateValue = UI5Date.getInstance();
 
 			if (oHoursClock) {
 				iHours = parseInt(oHoursClock.getSelectedValue());
@@ -699,7 +703,7 @@ sap.ui.define([
 		/**
 		 * Set what clocks show.
 		 *
-		 * @param {object} oDate JavaScript date object
+		 * @param {object} oDate date instance
 		 * @param {boolean} bHoursValueIs24 whether the hours value is 24 or not
 		 * @private
 		 */
@@ -714,12 +718,12 @@ sap.ui.define([
 				iHours,
 				sAmPm = null;
 
-			oDate = oDate || new Date();
+			oDate = oDate || UI5Date.getInstance();
 
 			// Cross frame check for a date should be performed here otherwise setDateValue would fail in OPA tests
 			// because Date object in the test is different than the Date object in the application (due to the iframe).
 			if (Object.prototype.toString.call(oDate) !== "[object Date]" || isNaN(oDate)) {
-				throw new Error("Date must be a JavaScript date object; " + this);
+				throw new Error("Date must be a JavaScript or UI5Date date object; " + this);
 			}
 
 			if (!bHoursValueIs24) {
@@ -998,8 +1002,10 @@ sap.ui.define([
 
 			aButtons = this.getAggregation("_buttons");
 			aClocks = this.getAggregation("_clocks");
-			this._clockCount = aClocks.length;
-			this._switchClock(0);
+			this._clockCount = aClocks ? aClocks.length : 0;
+			if (this._clockCount) {
+				this._switchClock(0);
+			}
 
 			// attach events to the controls
 			for (iIndex = 0; iIndex < this._clockCount; iIndex++) {
@@ -1021,10 +1027,11 @@ sap.ui.define([
 		/**
 		 * Attaches events of the clocks.
 		 *
-		 * @param {sap.m.Input} oInput Input object to attach events to
+		 * @param {sap.m.TimePickerClock} oClock Clock to attach events to
+		 * @param {sap.m.internal.ToggleSpinButton} oButton button to attach events to
 		 * @private
 		 */
-		 TimePickerClocks.prototype._attachEvents = function(oClock, oButton) {
+		TimePickerClocks.prototype._attachEvents = function(oClock, oButton) {
 
 			oClock.attachChange(function(oEvent) {
 				var iSelected = oEvent.getParameter("value"),
@@ -1078,7 +1085,7 @@ sap.ui.define([
 		 * @param {int} iClockIndex the index (in _clocks aggregation) of the clock
 		 * @private
 		 */
-		 TimePickerClocks.prototype._switchClock = function(iClockIndex) {
+		TimePickerClocks.prototype._switchClock = function(iClockIndex) {
 			var aClocks = this.getAggregation("_clocks"),
 				aButtons = this.getAggregation("_buttons"),
 				oActiveClock = this._getActiveClock();
@@ -1161,7 +1168,7 @@ sap.ui.define([
 		 * @param {boolean} bEnabled An enabled state
 		 * @private
 		 */
-		 TimePickerClocks.prototype._setControlValueAndEnabled = function (oClock, oButton, vValue, bEnabled) {
+		TimePickerClocks.prototype._setControlValueAndEnabled = function (oClock, oButton, vValue, bEnabled) {
 			oClock.setSelectedValue(parseInt(vValue));
 			oClock.setEnabled(bEnabled);
 			oButton.setEnabled(bEnabled);

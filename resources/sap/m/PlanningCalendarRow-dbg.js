@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -35,13 +35,12 @@ sap.ui.define([
 	 * The <code>sap.m.PlanningCalendarRow</code> allows you to modify appointments at row level.
 	 *
 	 * @extends sap.ui.core.Element
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.34
 	 * @alias sap.m.PlanningCalendarRow
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var PlanningCalendarRow = Element.extend("sap.m.PlanningCalendarRow", /** @lends sap.m.PlanningCalendarRow.prototype */ { metadata : {
 
@@ -111,7 +110,7 @@ sap.ui.define([
 			 * Hours:<br>
 			 * For views where the displayed intervals are hours, the placeholder snaps on every interval
 			 * of 30 minutes. After the appointment is dropped, the {@link #event:appointmentDrop appointmentDrop} event is fired, containing
-			 * the new start and end JavaScript date objects.<br>
+			 * the new start and end UI5Date or JavaScript Date objects.<br>
 			 * For example, an appointment with start date "Nov 13 2017 12:17:00" and end date "Nov 13 2017 12:45:30"
 			 * lasts for 27 minutes and 30 seconds. After dragging and dropping to a new time, the possible new
 			 * start date has time that is either "hh:00:00" or "hh:30:00" because of the placeholder that can
@@ -121,12 +120,12 @@ sap.ui.define([
 			 * Days:<br>
 			 * For views where intervals are days, the placeholder highlights the whole day and after the
 			 * appointment is dropped the {@link #event:appointmentDrop appointmentDrop} event is fired. The event contains the new start and
-			 * end JavaScript date objects with changed date but the original time (hh:mm:ss) is preserved.
+			 * end UI5Date or JavaScript Date objects with changed date but the original time (hh:mm:ss) is preserved.
 			 *
 			 * Months:<br>
 			 * For views where intervals are months, the placeholder highlights the whole month and after the
 			 * appointment is dropped the {@link #event:appointmentDrop appointmentDrop} event is fired. The event contains the new start and
-			 * end JavaScript date objects with changed month but the original date and time is preserved.
+			 * end UI5Date or JavaScript Date objects with changed month but the original date and time is preserved.
 			 *
 			 * <b>Note:</b> In "One month" view, the appointments are not draggable on small screen (as there they are
 			 * displayed as a list below the dates). Group appointments are also not draggable.
@@ -145,16 +144,16 @@ sap.ui.define([
 			 * Hours:
 			 * For views where the displayed intervals are hours, the appointment snaps on every interval
 			 * of 30 minutes. After the resize is finished, the {@link #event:appointmentResize appointmentResize} event is fired, containing
-			 * the new start and end JavaScript date objects.
+			 * the new start and end UI5Date or JavaScript Date objects.
 			 *
 			 * Days:
 			 * For views where intervals are days, the appointment snaps to the end of the day. After the resize is finished,
-			 * the {@link #event:appointmentResize appointmentResize} event is fired, containing the new start and end JavaScript date objects.
+			 * the {@link #event:appointmentResize appointmentResize} event is fired, containing the new start and end UI5Date or JavaScript Date objects.
 			 * The <code>endDate</code> time is changed to 00:00:00
 			 *
 			 * Months:
 			 * For views where intervals are months, the appointment snaps to the end of the month.
-			 * The {@link #event:appointmentResize appointmentResize} event is fired, containing the new start and end JavaScript date objects.
+			 * The {@link #event:appointmentResize appointmentResize} event is fired, containing the new start and end UI5Date or JavaScript Date objects.
 			 * The <code>endDate</code> is set to the 00:00:00 and first day of the following month.
 			 *
 			 * <b>Notes:</b>
@@ -226,9 +225,8 @@ sap.ui.define([
 				forwarding: {
 					getter: "_getPlanningCalendarCustomRowHeader",
 					aggregation: "content"
-				},
-				forwardBinding: true
 				}
+			}
 
 		},
 		events : {
@@ -244,12 +242,12 @@ sap.ui.define([
 					appointment : {type : "sap.ui.unified.CalendarAppointment"},
 
 					/**
-					 * Start date of the dropped appointment, as a JavaScript date object.
+					 * Start date of the dropped appointment, as a UI5Date or JavaScript Date object.
 					 */
 					startDate : {type : "object"},
 
 					/**
-					 * Dropped appointment end date as a JavaScript date object.
+					 * Dropped appointment end date as a UI5Date or JavaScript Date object.
 					 */
 					endDate : {type : "object"},
 
@@ -286,12 +284,12 @@ sap.ui.define([
 					appointment : {type : "sap.ui.unified.CalendarAppointment"},
 
 					/**
-					 * Start date of the dropped appointment, as a JavaScript date object.
+					 * Start date of the dropped appointment, as a UI5Date or JavaScript Date object.
 					 */
 					startDate : {type : "object"},
 
 					/**
-					 * Dropped appointment end date as a JavaScript date object.
+					 * Dropped appointment end date as a UI5Date or JavaScript Date object.
 					 */
 					endDate : {type : "object"},
 
@@ -314,12 +312,12 @@ sap.ui.define([
 					appointment : {type : "sap.ui.unified.CalendarAppointment"},
 
 					/**
-					 * Start date of the resized appointment, as a JavaScript date object.
+					 * Start date of the resized appointment, as a UI5Date or JavaScript Date object.
 					 */
 					startDate : {type : "object"},
 
 					/**
-					 * End date of the resized appointment, as a JavaScript date object.
+					 * End date of the resized appointment, as a UI5Date or JavaScript Date object.
 					 */
 					endDate : {type : "object"}
 				}
@@ -332,12 +330,12 @@ sap.ui.define([
 			appointmentCreate : {
 				parameters : {
 					/**
-					 * Start date of the created appointment, as a JavaScript date object.
+					 * Start date of the created appointment, as a UI5Date or JavaScript Date object.
 					 */
 					startDate : {type : "object"},
 
 					/**
-					 * End date of the created appointment, as a JavaScript date object.
+					 * End date of the created appointment, as a UI5Date or JavaScript Date object.
 					 */
 					endDate : {type : "object"},
 

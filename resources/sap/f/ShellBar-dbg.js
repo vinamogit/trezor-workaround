@@ -1,12 +1,11 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides control sap.f.ShellBar
 sap.ui.define([
-	'sap/f/library',
 	"sap/ui/core/Control",
 	"./shellBar/Factory",
 	"./shellBar/AdditionalContentSupport",
@@ -15,10 +14,10 @@ sap.ui.define([
 	"sap/m/BarInPageEnabler",
 	"sap/m/BadgeCustomData",
 	"sap/m/Button",
+	"sap/m/library",
 	"./ShellBarRenderer"
 ],
 function(
-	library,
 	Control,
 	Factory,
 	AdditionalContentSupport,
@@ -26,12 +25,13 @@ function(
 	Accessibility,
 	BarInPageEnabler,
 	BadgeCustomData,
-	Button
-	/*, ShellBarRenderer */
+	Button,
+	mobileLibrary,
+	ShellBarRenderer
 ) {
 	"use strict";
 
-	var AvatarSize = library.AvatarSize;
+	var AvatarSize = mobileLibrary.AvatarSize;
 
 	/**
 	 * Constructor for a new <code>ShellBar</code>.
@@ -56,13 +56,12 @@ function(
 	 * @implements sap.f.IShellBar, sap.m.IBar, sap.tnt.IToolHeader
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @alias sap.f.ShellBar
 	 * @since 1.63
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var ShellBar = Control.extend("sap.f.ShellBar", /** @lends sap.f.ShellBar.prototype */ {
 		metadata: {
@@ -247,7 +246,9 @@ function(
 					}
 				}
 			}
-		}
+		},
+
+		renderer: ShellBarRenderer
 	});
 
 	// Enhance the prototype with additional content aggregation support
@@ -696,7 +697,7 @@ function(
 	/**
 	 * Gets the available Bar contexts.
 	 *
-	 * @returns {Object} with all available contexts
+	 * @returns {sap.m.BarContexts} with all available contexts
 	 * @protected
 	 * @function
 	 * @since 1.65

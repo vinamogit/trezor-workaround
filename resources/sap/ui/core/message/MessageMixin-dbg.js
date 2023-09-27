@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -43,18 +43,19 @@ sap.ui.define(["sap/ui/core/library", "sap/base/Log", "sap/ui/core/LabelEnableme
 
 			aMessages.forEach(function(oMessage) {
 				if (aLabels && aLabels.length > 0) {
-				// we simply take the first label text and ignore all others
+					// we simply take the first label text and ignore all others
 					var oLabel = sap.ui.getCore().byId(sLabelId);
-					if (oLabel.getMetadata().isInstanceOf("sap.ui.core.Label") && oLabel.getText && oMessage.getAdditionalText() !== oLabel.getText()) {
-						oMessage.setAdditionalText(oLabel.getText());
-						bForceUpdate = true;
+					if (oLabel.getMetadata().isInstanceOf("sap.ui.core.Label") && oLabel.getText) {
+						if (oMessage.getAdditionalText() !== oLabel.getText()) {
+							oMessage.setAdditionalText(oLabel.getText());
+							bForceUpdate = true;
+						}
 					} else {
 						Log.warning(
 							"sap.ui.core.message.Message: Can't create labelText." +
 							"Label with id " + sLabelId + " is no valid sap.ui.core.Label.",
 							this
 						);
-
 					}
 				}
 				if (oMessage.getControlId() !== this.getId()){
@@ -62,10 +63,13 @@ sap.ui.define(["sap/ui/core/library", "sap/base/Log", "sap/ui/core/LabelEnableme
 					bForceUpdate = true;
 				}
 			}.bind(this));
-			// Update the model to apply the changes
-			var oMessageModel = sap.ui.getCore().getMessageManager().getMessageModel();
-			oMessageModel.checkUpdate(bForceUpdate, true);
 
+			var Messaging = sap.ui.require("sap/ui/core/Messaging");
+			if (Messaging) {
+				// Update the model to apply the changes
+				var oMessageModel = Messaging.getMessageModel();
+				oMessageModel.checkUpdate(bForceUpdate, true);
+			}
 			// propagate messages
 			if (aMessages && aMessages.length > 0) {
 				var oMessage = aMessages[0];

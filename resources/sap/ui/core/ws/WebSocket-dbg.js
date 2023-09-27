@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -10,10 +10,9 @@ sap.ui.define([
 	'sap/ui/base/EventProvider',
 	'./ReadyState',
 	'sap/ui/thirdparty/URI',
-	"sap/base/Log",
-	"sap/ui/thirdparty/jquery"
+	"sap/base/Log"
 ],
-	function(Device, EventProvider, ReadyState, URI, Log, jQuery) {
+	function(Device, EventProvider, ReadyState, URI, Log) {
 	"use strict";
 
 	/**
@@ -26,7 +25,7 @@ sap.ui.define([
 	 * @class Basic WebSocket class.
 	 * @extends sap.ui.base.EventProvider
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @alias sap.ui.core.ws.WebSocket
 	 */
 	var WebSocket = EventProvider.extend("sap.ui.core.ws.WebSocket", /** @lends sap.ui.core.ws.WebSocket.prototype */ {
@@ -404,14 +403,14 @@ sap.ui.define([
 	 * @private
 	 */
 	WebSocket.prototype._openConnection = function(sUrl, aProtocols) {
-		var sUrl = this._resolveFullUrl(sUrl);
+		sUrl = this._resolveFullUrl(sUrl);
 		this._oWs = (typeof (aProtocols) === 'undefined')
 			? new window.WebSocket(sUrl)
 			: new window.WebSocket(sUrl, aProtocols);
-		this._oWs.onopen = jQuery.proxy(this._onopen, this);
-		this._oWs.onclose = jQuery.proxy(this._onclose, this);
-		this._oWs.onmessage = jQuery.proxy(this._onmessage, this);
-		this._oWs.onerror = jQuery.proxy(this._onerror, this);
+		this._oWs.onopen = this._onopen.bind(this);
+		this._oWs.onclose = this._onclose.bind(this);
+		this._oWs.onmessage = this._onmessage.bind(this);
+		this._oWs.onerror = this._onerror.bind(this);
 	};
 
 	// Event-Handlers
@@ -489,6 +488,7 @@ sap.ui.define([
 	 * @param {int} [iCode=1000] Status code that explains why the connection is closed. Must either be 1000, or
 	 *                      between 3000 and 4999
 	 * @param {string} [sReason] Closing reason as a string
+	 * @ui5-omissible-params iCode
 	 * @returns {this} Reference to <code>this</code> in order to allow method chaining
 	 * @public
 	 */

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -62,12 +62,11 @@ sap.ui.define(['./library',
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @public
 		 * @alias sap.m.BusyDialog
 		 * @see {@link fiori:https://experience.sap.com/fiori-design-web/busydialog Busy Dialog}
-		 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 		 */
 		var BusyDialog = Control.extend("sap.m.BusyDialog", /** @lends sap.m.BusyDialog.prototype */ {
 
@@ -267,7 +266,7 @@ sap.ui.define(['./library',
 		BusyDialog.prototype.open = function () {
 			var aAriaLabelledBy = this.getAriaLabelledBy();
 
-			Log.debug("sap.m.BusyDialog.open called at " + new Date().getTime());
+			Log.debug("sap.m.BusyDialog.open called at " + Date.now());
 
 			if (aAriaLabelledBy && aAriaLabelledBy.length) {
 				if (!this._oDialog._$dialog) {
@@ -278,8 +277,6 @@ sap.ui.define(['./library',
 				}
 			} else if (!this._oDialog.getShowHeader()) {
 				this._oDialog.addAriaLabelledBy(InvisibleText.getStaticId("sap.m", "BUSYDIALOG_TITLE"));
-			} else {
-				this._oDialog.removeAriaLabelledBy(InvisibleText.getStaticId("sap.m", "BUSYDIALOG_TITLE"));
 			}
 
 			//if the code is not ready yet (new sap.m.BusyDialog().open()) wait 50ms and then try ot open it.
@@ -324,6 +321,10 @@ sap.ui.define(['./library',
 		BusyDialog.prototype._fnCloseHandler = function () {
 			//fire the close event with 'cancelPressed' = true/false depending on how the busyDialog is closed
 			this.fireClose({cancelPressed: this._isClosedFromUserInteraction || false});
+
+			if (this._oDialog) {
+				this._oDialog.removeAllAriaLabelledBy();
+			}
 		};
 
 		/**
@@ -388,7 +389,9 @@ sap.ui.define(['./library',
 				if (sText) {
 					this._oLabel = new Label(this.getId() + '-TextLabel', {text: sText}).addStyleClass('sapMBusyDialogLabel');
 					this._oDialog.insertAggregation('content', this._oLabel, 0);
-					this._oDialog.addAriaLabelledBy(this._oLabel.getId());
+					if (this._oDialog.getShowHeader()) {
+						this._oDialog.addAriaLabelledBy(this._oLabel.getId());
+					}
 				}
 			} else {
 				if (sText) {

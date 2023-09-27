@@ -1,13 +1,44 @@
-/*
- * ! OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+/*!
+ * OpenUI5
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 sap.ui.define([
-	'sap/ui/model/json/JSONModel', 'sap/m/VBox', 'sap/ui/core/Control', 'sap/m/Column', 'sap/m/Text', 'sap/ui/model/Filter', "sap/m/Table", "sap/m/OverflowToolbar", "sap/m/SearchField", "sap/m/ToolbarSpacer", "sap/m/OverflowToolbarButton", "sap/m/OverflowToolbarLayoutData", "sap/base/util/merge", "sap/ui/core/dnd/DragDropInfo"
-], function(JSONModel, VBox, Control, Column, Text, Filter, Table, OverflowToolbar, SearchField, ToolbarSpacer, OverflowToolbarButton, OverflowToolbarLayoutData, merge, DragDropInfo) {
+	'sap/ui/model/json/JSONModel',
+	'sap/m/VBox',
+	'sap/ui/core/Control',
+	'sap/m/Column',
+	'sap/m/Text',
+	'sap/ui/model/Filter',
+	"sap/m/Table",
+	"sap/m/OverflowToolbar",
+	"sap/m/SearchField",
+	"sap/m/ToolbarSpacer",
+	"sap/m/OverflowToolbarButton",
+	"sap/m/OverflowToolbarLayoutData",
+	"sap/ui/core/dnd/DragDropInfo",
+	'sap/ui/core/ShortcutHintsMixin',
+	"sap/ui/events/KeyCodes",
+	"sap/base/Log",
+	"sap/ui/Device",
+	"sap/m/library",
+	"sap/base/util/UriParameters",
+	"sap/ui/core/InvisibleText"
+], function(JSONModel, VBox, Control, Column, Text, Filter, Table, OverflowToolbar, SearchField, ToolbarSpacer, OverflowToolbarButton, OverflowToolbarLayoutData, DragDropInfo, ShortcutHintsMixin, KeyCodes, Log, Device, library, UriParameters, InvisibleText) {
 	"use strict";
+
+	/**
+	 * P13n <code>Item</code> object type.
+	 *
+	 * @static
+	 * @constant
+	 * @typedef {object} sap.m.p13n.Item
+	 * @property {string} name The unique key of the item
+	 * @property {string} label The label describing the personalization item
+	 * @property {boolean} visible Defines the selection state of the personalization item
+	 * @public
+	 */
 
 	/**
 	 * Constructor for a new <code>BasePanel</code>.
@@ -22,11 +53,11 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
-	 * @private
-	 * @ui5-restricted
-	 * @experimental Since 1.96.
+	 * @public
+	 * @abstract
+	 *
 	 * @since 1.96
 	 * @alias sap.m.p13n.BasePanel
 	 */
@@ -51,6 +82,18 @@ sap.ui.define([
 				enableReorder: {
 					type: "boolean",
 					defaultValue: true
+				},
+
+				/**
+				 * Determines whether the panel has a fixed width.
+				 *
+				 * @private
+				 * @ui5-restricted sap.ui.mdc
+				 */
+				_useFixedWidth: {
+					type: "boolean",
+					defaultValue: false,
+					visibility: "hidden"
 				}
 			},
 			aggregations: {
@@ -84,17 +127,19 @@ sap.ui.define([
 				 * This event is fired if any change has been made within the <code>BasePanel</code> control.
 				 */
 				change: {
-					/**
-					 * The reason why the panel state has changed, for example, items have been added, removed, or moved.
-					 */
-					reason: {
-						type: "string"
-					},
-					/**
-					 * An object containing information about the specific item that has been changed.
-					 */
-					item: {
-						type: "object"
+					parameters: {
+						/**
+						 * The reason why the panel state has changed, for example, items have been added, removed, or moved.
+						 */
+						reason: {
+							type: "string"
+						},
+						/**
+						 * An object containing information about the specific item that has been changed.
+						 */
+						item: {
+							type: "sap.m.p13n.Item"
+						}
 					}
 				}
 			}
@@ -104,12 +149,18 @@ sap.ui.define([
 			render: function(oRm, oControl) {
 				oRm.openStart("div", oControl);
 				oRm.style("height", "100%");
+				if (oControl.getProperty("_useFixedWidth")) {
+					oRm.style("width", oControl.getWidth());
+				}
 				oRm.openEnd();
 				oRm.renderControl(oControl.getAggregation("_content"));
 				oRm.close("div");
 			}
 		}
 	});
+
+	// shortcut for sap.m.MultiSelectMode
+	var MultiSelectMode = library.MultiSelectMode;
 
 	//inner model name
 	BasePanel.prototype.P13N_MODEL = "$p13n";
@@ -120,9 +171,18 @@ sap.ui.define([
 	BasePanel.prototype.CHANGE_REASON_MOVE = "Move";
 	BasePanel.prototype.CHANGE_REASON_SELECTALL = "SelectAll";
 	BasePanel.prototype.CHANGE_REASON_DESELECTALL = "DeselectAll";
+	BasePanel.prototype.CHANGE_REASON_RANGESELECT = "RangeSelect";
 
 	//defines the name of the attribute describing the presence/active state
 	BasePanel.prototype.PRESENCE_ATTRIBUTE = "visible";
+	BasePanel.prototype.WIDTH = "30rem";
+
+	BasePanel.prototype.applySettings = function(mSettings) {
+		Control.prototype.applySettings.apply(this, arguments);
+		if (!mSettings || (mSettings && mSettings.enableReorder === undefined)) {
+			this._updateMovement(true);
+		}
+	};
 
 	BasePanel.prototype.init = function() {
 		Control.prototype.init.apply(this, arguments);
@@ -131,16 +191,29 @@ sap.ui.define([
 		this._oP13nModel.setSizeLimit(10000);
 		this.setModel(this._oP13nModel, this.P13N_MODEL);
 
-	    // list is necessary to set the template + model on
+		// list is necessary to set the template + model on
 		this._oListControl = this._createInnerListControl();
+
+		this._oInvText = new InvisibleText({
+			text: this.getTitle() //use the Panel title als invisibleText title for the table
+		});
+		this._oListControl.addAriaLabelledBy(this._oInvText);
 
 		// Determines whether the rearranged item should be focused
 		this._bFocusOnRearrange = true;
 
 		this._setInnerLayout();
 
-		// disable 'select all'
-		this._oListControl.setMultiSelectMode("ClearAll");
+		// experimentally enable select all
+		var oParams = UriParameters.fromQuery(window.location.search);
+		this._oListControl.setMultiSelectMode(oParams.get("sap-ui-xx-p13nSelectAll") == "true" ? MultiSelectMode.SelectAll : MultiSelectMode.ClearAll);
+	};
+
+	BasePanel.prototype.onAfterRendering = function() {
+		if (!this._oResizeObserver) {
+			this._oResizeObserver = new ResizeObserver(this._onResize.bind(this));
+		}
+		this._oResizeObserver.observe(this.getDomRef());
 	};
 
 	/**
@@ -149,44 +222,32 @@ sap.ui.define([
 	BasePanel.prototype._setInnerLayout = function() {
 		this.setAggregation("_content", new VBox({
 			items: [
-				this._oListControl
+				this._oListControl,
+				this._oInvText
 			]
 		}));
 	};
 
 	/**
-	 * P13n <code>Item</code> object type.
-	 *
-	 * @type {sap.m.p13n.Item}
-	 * @static
-	 * @constant
-	 * @typedef {Object} sap.m.p13n.Item
-	 * @property {string} name The unique key of the item
-	 * @property {string} label The label describing the personalization item
-	 * @property {boolean} visible Defines the selection state of the personalization item
-	 * @public
-	 */
-
-	/**
 	 * Sets the personalization state of the panel instance.
 	 *
 	 * @public
-	 * @param {sap.m.p13n.Item} aP13nData An array containing the personalization state that is represented by the <code>BasePanel</code>.
-	 * @returns {sap.m.p13n.BasePanel} The BasePanel instance
+	 * @param {sap.m.p13n.Item[]} aP13nData An array containing the personalization state that is represented by the <code>BasePanel</code>.
+	 * @returns {this} The BasePanel instance
 	 */
 	BasePanel.prototype.setP13nData = function(aP13nData) {
-		this._getP13nModel().setProperty("/items", merge([], aP13nData));
+		this._getP13nModel().setProperty("/items", aP13nData);
 		return this;
 	};
 
 	/**
-	 *
+	 * Returns the personalization state that is currently displayed by the <code>BasePanel</code>.
 	 * @public
 	 * @param {boolean} bOnlyActive Determines whether only the present items is included
-	 * @returns {Array} An array containing the personalization state that is currently displayed by the <code>BasePanel</code>
+	 * @returns {sap.m.p13n.Item[]} An array containing the personalization state that is currently displayed by the <code>BasePanel</code>
 	 */
 	BasePanel.prototype.getP13nData = function (bOnlyActive) {
-		var aItems = merge([], this._getP13nModel().getProperty("/items"));
+		var aItems = this._getP13nModel().getProperty("/items");
 		if (bOnlyActive) {
 			aItems = aItems.filter(function(oItem){
 				return oItem[this.PRESENCE_ATTRIBUTE];
@@ -229,14 +290,22 @@ sap.ui.define([
 	};
 
 	/**
-	 * The <code>enableReorder</code> property determines whether additional move buttons are shown when hovering over
-	 * the inner list. In addition, drag and drop will be enabled for the inner list control.
+	 * Getter for the fixed panel width
 	 *
+	 * @private
+	 * @ui5-restricted sap.ui.mdc
+	 * @returns {string} The fixed panel width
+	 */
+	BasePanel.prototype.getWidth = function() {
+		return this.WIDTH;
+	};
+
+	/**
 	 * @param {boolean} bEnableReorder Determines whether reordering is enabled
-	 * @public
+	 * @private
 	 * @returns {sap.m.p13n.BasePanel} The BasePanel instance
 	 */
-	BasePanel.prototype.setEnableReorder = function(bEnableReorder) {
+	BasePanel.prototype._updateMovement = function(bEnableReorder) {
 		var oTemplate = this.getAggregation("_template");
 		if (bEnableReorder) {
 			this._addHover(oTemplate);
@@ -245,11 +314,24 @@ sap.ui.define([
 		}
 		this._getDragDropConfig().setEnabled(bEnableReorder);
 		this._setMoveButtonVisibility(bEnableReorder);
-		this.setProperty("enableReorder", bEnableReorder);
 
 		return this;
 	};
 
+	/**
+	 * The <code>enableReorder</code> property determines whether additional move buttons are shown when hovering over
+	 * the inner list. In addition, drag and drop will be enabled for the inner list control.
+	 *
+	 * @param {boolean} bEnableReorder Determines whether reordering is enabled
+	 * @public
+	 * @returns {sap.m.p13n.BasePanel} The BasePanel instance
+	 */
+	BasePanel.prototype.setEnableReorder = function(bEnableReorder) {
+		this.setProperty("enableReorder", bEnableReorder);
+		this._updateMovement(bEnableReorder);
+
+		return this;
+	};
 
 	BasePanel.prototype._getDragDropConfig = function() {
 		if (!this._oDragDropInfo){
@@ -265,23 +347,30 @@ sap.ui.define([
 	};
 
 	BasePanel.prototype._getMoveTopButton = function() {
-		if (!this._oMoveTopBtn) {
-			this._oMoveTopBtn = new OverflowToolbarButton(this.getId() + "-moveTopBtn",{
+		if (!this._oMoveTopButton) {
+			this._oMoveTopButton = new OverflowToolbarButton(this.getId() + "-moveTopBtn", {
 				type: "Transparent",
 				tooltip: this._getResourceText("p13n.MOVE_TO_TOP"),
 				icon: "sap-icon://collapse-group",
 				press: [this._onPressButtonMoveToTop, this],
 				visible: false
 			});
-			this.addDependent(this._oMoveTopBtn);
+			this.addDependent(this._oMoveTopButton);
+
+			ShortcutHintsMixin.addConfig(this._oMoveTopButton, {
+				addAccessibilityLabel: true,
+				message: this._getResourceText(Device.os.macintosh ? "p13n.SHORTCUT_MOVE_TO_TOP_MAC" : "p13n.SHORTCUT_MOVE_TO_TOP") // Cmd+Home or Ctrl+Home
+				},
+				this
+			);
 		}
 
-		return this._oMoveTopBtn;
+		return this._oMoveTopButton;
 	};
 
 	BasePanel.prototype._getMoveUpButton = function() {
 		if (!this._oMoveUpButton) {
-			this._oMoveUpButton = new OverflowToolbarButton(this.getId() + "-moveUpBtn",{
+			this._oMoveUpButton = new OverflowToolbarButton(this.getId() + "-moveUpBtn", {
 				type: "Transparent",
 				tooltip: this._getResourceText("p13n.MOVE_UP"),
 				icon: "sap-icon://navigation-up-arrow",
@@ -289,6 +378,14 @@ sap.ui.define([
 				visible: false
 			});
 			this.addDependent(this._oMoveUpButton);
+
+			ShortcutHintsMixin.addConfig(this._oMoveUpButton, {
+				addAccessibilityLabel: true,
+				message: this._getResourceText(Device.os.macintosh ? "p13n.SHORTCUT_MOVE_UP_MAC" : "p13n.SHORTCUT_MOVE_UP") // Cmd+CursorUp or Ctrl+CursorUp
+				},
+				this
+			);
+
 		}
 
 		return this._oMoveUpButton;
@@ -296,7 +393,7 @@ sap.ui.define([
 
 	BasePanel.prototype._getMoveDownButton = function() {
 		if (!this._oMoveDownButton) {
-			this._oMoveDownButton = new OverflowToolbarButton(this.getId() + "-moveDownpBtn",{
+			this._oMoveDownButton = new OverflowToolbarButton(this.getId() + "-moveDownpBtn", {
 				type: "Transparent",
 				tooltip: this._getResourceText("p13n.MOVE_DOWN"),
 				icon: "sap-icon://navigation-down-arrow",
@@ -304,6 +401,13 @@ sap.ui.define([
 				visible: false
 			});
 			this.addDependent(this._oMoveDownButton);
+
+			ShortcutHintsMixin.addConfig(this._oMoveDownButton, {
+				addAccessibilityLabel: true,
+				message: this._getResourceText(Device.os.macintosh ? "p13n.SHORTCUT_MOVE_DOWN_MAC" : "p13n.SHORTCUT_MOVE_DOWN") // Cmd+CursorDown or Ctrl+CursorDown
+				},
+				this
+			);
 		}
 
 		return this._oMoveDownButton;
@@ -311,7 +415,7 @@ sap.ui.define([
 
 	BasePanel.prototype._getMoveBottomButton = function() {
 		if (!this._oMoveBottomButton) {
-			this._oMoveBottomButton = new OverflowToolbarButton(this.getId() + "-moveBottomBtn",{
+			this._oMoveBottomButton = new OverflowToolbarButton(this.getId() + "-moveBottomBtn", {
 				type: "Transparent",
 				tooltip: this._getResourceText("p13n.MOVE_TO_BOTTOM"),
 				icon: "sap-icon://expand-group",
@@ -319,9 +423,27 @@ sap.ui.define([
 				visible: false
 			});
 			this.addDependent(this._oMoveBottomButton);
+
+			ShortcutHintsMixin.addConfig(this._oMoveBottomButton, {
+				addAccessibilityLabel: true,
+				message: this._getResourceText(Device.os.macintosh ? "p13n.SHORTCUT_MOVE_TO_BOTTOM_MAC" : "p13n.SHORTCUT_MOVE_TO_BOTTOM") // Cmd+End or Ctrl+End
+				},
+				this
+			);
+
 		}
 
 		return this._oMoveBottomButton;
+	};
+
+	BasePanel.prototype._onResize = function(aResizeEntity) {
+		var oDomRect = aResizeEntity[0].contentRect;
+		if (this._oMoveTopButton) {
+			this._oMoveTopButton.setVisible(oDomRect.width > 400);
+		}
+		if (this._oMoveBottomButton) {
+			this._oMoveBottomButton.setVisible(oDomRect.width > 400);
+		}
 	};
 
 	BasePanel.prototype._createInnerListControl = function() {
@@ -343,9 +465,47 @@ sap.ui.define([
 		if (oRow && oRow.aDelegates.length < 1) {
 			oRow.addEventDelegate({
 				onmouseover: this._hoverHandler.bind(this),
-				onfocusin: this._focusHandler.bind(this)
+				onfocusin: this._focusHandler.bind(this),
+				onkeydown: this._keydownHandler.bind(this)
 			});
 		}
+	};
+
+	BasePanel.prototype._keydownHandler = function(oEvent) {
+		if (!this.getEnableReorder()){
+			return;
+		}
+
+		if (oEvent.isMarked()) {
+			return;
+		}
+
+		// Log.info("onKeyDown", oEvent.ctrlKey  + " | " + oEvent.which + " | " + oEvent.key);
+
+		if ((oEvent.metaKey || oEvent.ctrlKey )) {
+			var oButton;
+			if (oEvent.which === KeyCodes.HOME) {
+				oButton = this._getMoveTopButton();
+			}
+			if (oEvent.which === KeyCodes.ARROW_UP) {
+				oButton = this._getMoveUpButton();
+			}
+			if (oEvent.which === KeyCodes.ARROW_DOWN) {
+				oButton = this._getMoveDownButton();
+			}
+			if (oEvent.which === KeyCodes.END) {
+				oButton = this._getMoveBottomButton();
+			}
+
+			if (oButton && oButton.getParent() && oButton.getVisible() && oButton.getEnabled()) {
+				// Mark the event to ensure that parent handlers (e.g. FLP) can skip their processing if needed. Also prevent potential browser defaults
+				oEvent.setMarked();
+				oEvent.preventDefault();
+
+				oButton.firePress();
+			}
+		}
+
 	};
 
 	BasePanel.prototype._focusHandler = function(oEvt) {
@@ -397,7 +557,6 @@ sap.ui.define([
 				width: "100%",
 				layoutData: new OverflowToolbarLayoutData({
 					shrinkable: true,
-					moveToOverflow: true,
 					priority: "High",
 					maxWidth: "16rem"
 				})
@@ -406,8 +565,24 @@ sap.ui.define([
 		return this._oSearchField;
 	};
 
+	/**
+	 * Getter for the initial focusable <code>control</code> on the panel.
+	 *
+	 * @returns {sap.ui.core.Control} Control instance which could get the focus.
+	 *
+	 * @private
+	 * @ui5-restricted sap.m, sap.ui.mdc
+	 */
+	BasePanel.prototype.getInitialFocusedControl = function() {
+		return this._oSearchField;
+	};
+
 	BasePanel.prototype._setTemplate = function(oTemplate) {
 		oTemplate.setType("Active");
+		var oCurrentTemplate = this.getAggregation("_template");
+		if (oCurrentTemplate) {
+			oCurrentTemplate.destroy();
+		}
 		this.setAggregation("_template", oTemplate);
 		if (oTemplate) {
 			if (this.getEnableReorder()){
@@ -441,9 +616,9 @@ sap.ui.define([
 		return this.getModel(this.P13N_MODEL);
 	};
 
-	BasePanel.prototype._getResourceText = function(sText, vValue) {
+	BasePanel.prototype._getResourceText = function(sText, aValue) {
 		this.oResourceBundle = this.oResourceBundle ? this.oResourceBundle : sap.ui.getCore().getLibraryResourceBundle("sap.m");
-		return sText ? this.oResourceBundle.getText(sText, vValue) : this.oResourceBundle;
+		return sText ? this.oResourceBundle.getText(sText, aValue) : this.oResourceBundle;
 	};
 
 	BasePanel.prototype._addTableColumns = function(aColumns) {
@@ -483,28 +658,46 @@ sap.ui.define([
 	BasePanel.prototype._onSelectionChange = function(oEvent) {
 
 		var aListItems = oEvent.getParameter("listItems");
-		var bSelectAll = oEvent.getParameter("selectAll");
-		var bDeSelectAll = !bSelectAll && aListItems.length > 1;
+		var sSpecialChangeReason = this._checkSpecialChangeReason(oEvent.getParameter("selectAll"), oEvent.getParameter("listItems"));
 
 		aListItems.forEach(function(oTableItem) {
-			this._selectTableItem(oTableItem, bSelectAll || bDeSelectAll);
+			this._selectTableItem(oTableItem, !!sSpecialChangeReason);
 		}, this);
 
-		if (bSelectAll || bDeSelectAll) {
+		if (sSpecialChangeReason) {
+
+			var aModelItems = [];
+			aListItems.forEach(function(oTableItem) {
+				aModelItems.push(this._getModelEntry(oTableItem));
+			}, this);
+
 			this.fireChange({
-				reason: bSelectAll ? this.CHANGE_REASON_SELECTALL : this.CHANGE_REASON_DESELECTALL,
-				item: undefined //No direct item is affected
+				reason: sSpecialChangeReason,
+				item: aModelItems
 			});
 		}
 
-
 		// in case of 'deselect all', the move buttons for positioning are going to be disabled
-		if (bDeSelectAll) {
+		if (sSpecialChangeReason === this.CHANGE_REASON_DESELECTALL) {
 			this._getMoveTopButton().setEnabled(false);
 			this._getMoveUpButton().setEnabled(false);
 			this._getMoveDownButton().setEnabled(false);
 			this._getMoveBottomButton().setEnabled(false);
 		}
+	};
+
+	BasePanel.prototype._checkSpecialChangeReason = function(bSelectAll, aListItems) {
+		var sSpecialChangeReason;
+
+		if (bSelectAll) {
+			sSpecialChangeReason = this.CHANGE_REASON_SELECTALL;
+		} else if (!bSelectAll && aListItems.length > 1 && !aListItems[0].getSelected()) {
+			sSpecialChangeReason = this.CHANGE_REASON_DESELECTALL;
+		} else if (aListItems.length > 1 && aListItems.length < this._oListControl.getItems().length) {
+			sSpecialChangeReason = this.CHANGE_REASON_RANGESELECT;
+		}
+
+		return sSpecialChangeReason;
 	};
 
 	BasePanel.prototype._onItemPressed = function(oEvent) {
@@ -550,10 +743,10 @@ sap.ui.define([
 		oList.getBinding("items").filter(bShowSelected ? new Filter(this.PRESENCE_ATTRIBUTE, "EQ", true) : []);
 	};
 
-	BasePanel.prototype._selectTableItem = function(oTableItem, bSelectAll) {
-		this._updateEnableOfMoveButtons(oTableItem, bSelectAll ? false : true);
+	BasePanel.prototype._selectTableItem = function(oTableItem, bSpecialChangeReason) {
+		this._updateEnableOfMoveButtons(oTableItem, bSpecialChangeReason ? false : true);
 		this._oSelectedItem = oTableItem;
-		if (!bSelectAll) {
+		if (!bSpecialChangeReason) {
 			var oItem = this._getP13nModel().getProperty(this._oSelectedItem.getBindingContext(this.P13N_MODEL).sPath);
 
 			this.fireChange({
@@ -646,12 +839,13 @@ sap.ui.define([
 
 	BasePanel.prototype.exit = function() {
 		Control.prototype.exit.apply(this, arguments);
+		this._oResizeObserver = null;
 		this._bFocusOnRearrange = null;
 		this._oHoveredItem = null;
 		this._oSelectionBindingInfo = null;
 		this._oSelectedItem = null;
 		this._oListControl = null;
-		this._oMoveTopBtn = null;
+		this._oMoveTopButton = null;
 		this._oMoveUpButton = null;
 		this._oMoveDownButton = null;
 		this._oMoveBottomButton = null;

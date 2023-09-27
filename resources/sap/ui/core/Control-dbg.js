@@ -1,14 +1,16 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides base class sap.ui.core.Control for all controls
 sap.ui.define([
 	'./CustomStyleClassSupport',
+	'./Core',
 	'./Element',
 	'./UIArea',
+	'./StaticArea',
 	'./RenderManager',
 	'./BusyIndicatorUtils',
 	'./BlockLayerUtils',
@@ -18,8 +20,10 @@ sap.ui.define([
 ],
 	function(
 		CustomStyleClassSupport,
+		Core,
 		Element,
 		UIArea,
+		StaticArea,
 		RenderManager,
 		BusyIndicatorUtils,
 		BlockLayerUtils,
@@ -77,11 +81,10 @@ sap.ui.define([
 	 * @extends sap.ui.core.Element
 	 * @abstract
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @alias sap.ui.core.Control
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
-	var Control = Element.extend("sap.ui.core.Control", /** @lends sap.ui.core.Control */ {
+	var Control = Element.extend("sap.ui.core.Control", /** @lends sap.ui.core.Control.prototype */ {
 
 		metadata : {
 			stereotype : "control",
@@ -180,7 +183,7 @@ sap.ui.define([
 
 			Element.apply(this,arguments);
 			this.bOutput = this.getDomRef() != null; // whether this control has already produced output
-
+			this._bOnBeforeRenderingPhase = false; // whether the control is in the onBeforeRendering phase
 		},
 
 		renderer : null // Control has no renderer
@@ -275,6 +278,7 @@ sap.ui.define([
 	 * @param {string} [sIdSuffix] a suffix to be appended to the cloned element id
 	 * @param {string[]} [aLocalIds] an array of local IDs within the cloned hierarchy (internally used)
 	 * @returns {this} reference to the newly created clone
+	 * @override
 	 * @public
 	 */
 	Control.prototype.clone = function() {
@@ -305,6 +309,22 @@ sap.ui.define([
 	};
 
 	/**
+	 * Determines whether the control is in rendering phase.
+	 *
+	 * @returns {boolean}
+	 * @private
+	 */
+	function isInRenderingPhase(oControl) {
+		if (!oControl || !oControl.isA) {
+			return false;
+		}
+		if (oControl.isA("sap.ui.core.Control")) {
+			return oControl._bRenderingPhase;
+		}
+		return isInRenderingPhase(oControl.getParent());
+	}
+
+	/**
 	 * Marks this control and its children for a re-rendering, usually because its state has changed and now differs
 	 * from the rendered DOM.
 	 *
@@ -324,8 +344,23 @@ sap.ui.define([
 	 */
 	Control.prototype.invalidate = function(oOrigin) {
 		var oUIArea;
-		if ( this.bOutput && (oUIArea = this.getUIArea()) ) {
+
+		// Invalidations that happen in the onBeforeRendering hook of controls can be ignored
+		// since the rendering of the control is about to start.
+		if ( this._bOnBeforeRenderingPhase ) {
+			return;
+		}
+
+		// Mark the control that it is in a dirty state and requires rendering.
+		// This flag will be used by the RenderManager to determine whether the rendering
+		// is necessary for the child controls while they are getting rendered with their parents.
+		// This will be cleared by the RenderManager when the control is rendered completely.
+		this._bNeedsRendering = true;
+
+		var oParent = this.getParent();
+		if ( (this.bOutput || isInRenderingPhase(oParent)) && (oUIArea = this.getUIArea()) ) {
 			// if this control has been rendered before (bOutput)
+			// or if the invalidation happens while parent rendering (isInRenderingPhase(oParent))
 			// and if it is contained in a UIArea (!!oUIArea)
 			// then control re-rendering can be used (see UIArea.rerender() for details)
 			//
@@ -343,8 +378,7 @@ sap.ui.define([
 			}
 		} else {
 			// else we bubble up the hierarchy
-			var oParent = this.getParent();
-			if (oParent && (
+			if (oParent && !oParent.isInvalidateSuppressed() && (
 					this.bOutput /* && !this.getUIArea() */ ||
 					/* !this.bOutput && */ !(this.getVisible && this.getVisible() === false))) {
 
@@ -382,6 +416,7 @@ sap.ui.define([
 	 * @protected
 	 */
 	Control.prototype.rerender = function() {
+		this._bNeedsRendering = true;
 		UIArea.rerenderControl(this);
 	};
 
@@ -508,8 +543,8 @@ sap.ui.define([
 	 *
 	 * Use {@link #detachBrowserEvent} to remove the event handler(s) again.
 	 *
-	 * @param {string} [sEventType] A string containing one or more JavaScript event types, such as "click" or "blur".
-	 * @param {function} [fnHandler] A function to execute each time the event is triggered.
+	 * @param {string} sEventType A string containing one or more JavaScript event types, such as "click" or "blur".
+	 * @param {function} fnHandler A function to execute each time the event is triggered.
 	 * @param {object} [oListener] The object, that wants to be notified, when the event occurs
 	 * @returns {this} Returns <code>this</code> to allow method chaining
 	 * @public
@@ -523,7 +558,6 @@ sap.ui.define([
 				}
 				oListener = oListener || this;
 
-				// FWE jQuery.proxy can't be used as it breaks our contract when used with same function but different listeners
 				var fnProxy = fnHandler.bind(oListener);
 
 				this.aBindParameters.push({
@@ -550,8 +584,8 @@ sap.ui.define([
 	 * Note: listeners are only removed, if the same combination of event type, callback function
 	 * and context object is given as in the call to <code>attachBrowserEvent</code>.
 	 *
-	 * @param {string} [sEventType] A string containing one or more JavaScript event types, such as "click" or "blur".
-	 * @param {function} [fnHandler] The function that is to be no longer executed.
+	 * @param {string} sEventType A string containing one or more JavaScript event types, such as "click" or "blur".
+	 * @param {function} fnHandler The function that is to be no longer executed.
 	 * @param {object} [oListener] The context object that was given in the call to <code>attachBrowserEvent</code>.
 	 * @returns {this} Returns <code>this</code> to allow method chaining
 	 * @public
@@ -587,7 +621,7 @@ sap.ui.define([
 	 *
 	 * It is retrieved using the RenderManager as done during rendering.
 	 *
-	 * @return {object} a Renderer suitable for this Control instance.
+	 * @return {sap.ui.core.ControlRenderer} a Renderer suitable for this Control instance.
 	 * @protected
 	 */
 	Control.prototype.getRenderer = function () {
@@ -619,45 +653,25 @@ sap.ui.define([
 	 * @public
 	 */
 	Control.prototype.placeAt = function(oRef, vPosition) {
-		var oCore = sap.ui.getCore();
-		if (oCore.isInitialized()) {
-			// core already initialized, do it now
-
-			// 1st try to resolve the oRef as a Container control
+		Core.ready(function() {
+			// 1st try to resolve the oRef as a container control
 			var oContainer = oRef;
-			if (typeof oContainer === "string") {
-				oContainer = oCore.byId(oRef);
-			}
-			// if no container control is found use the corresponding UIArea
-			var bIsUIArea = false;
-			if (!(oContainer instanceof Element)) {
-				oContainer = oCore.createUIArea(oRef);
-				bIsUIArea = true;
+			if (typeof oRef === "string") {
+				oContainer = Element.registry.get(oRef);
 			}
 
-			if (!oContainer) {
-				return this;
-			}
-
-			if (!bIsUIArea) {
-				var oContentAggInfo = oContainer.getMetadata().getAggregation("content");
-				var bContainerSupportsPlaceAt = true;
-
-				if (oContentAggInfo) {
-					if (!oContentAggInfo.multiple || oContentAggInfo.type != "sap.ui.core.Control") {
-						bContainerSupportsPlaceAt = false;
-					}
-				} else if (!oContainer.addContent ||
-						!oContainer.insertContent ||
-						!oContainer.removeAllContent) {
-					//Temporary workaround for sap.ui.commons.AbsoluteLayout to enable
-					// placeAt even when no content aggregation is available.
-					// TODO: Find a proper solution
-					bContainerSupportsPlaceAt = false;
-				}
-				if (!bContainerSupportsPlaceAt) {
+			if (oContainer instanceof Element) {
+				if (!isSuitableAsContainer(oContainer)) {
 					Log.warning("placeAt cannot be processed because container " + oContainer + " does not have an aggregation 'content'.");
 					return this;
+				}
+			} else {
+				// if no container control is found, use the corresponding UIArea
+				if (oRef === StaticArea.STATIC_UIAREA_ID
+					|| oRef && oRef.id === StaticArea.STATIC_UIAREA_ID) {
+					oContainer = StaticArea.getUIArea();
+				} else {
+					oContainer = UIArea.create(oRef);
 				}
 			}
 
@@ -680,15 +694,29 @@ sap.ui.define([
 						Log.warning("Position " + vPosition + " is not supported for function placeAt.");
 				}
 			}
-		} else {
-			// core not yet initialized, defer execution
-			var that = this;
-			oCore.attachInit(function () {
-				that.placeAt(oRef, vPosition);
-			});
-		}
+		}.bind(this));
 		return this;
 	};
+
+	/**
+	 * Checks whether the given UI5 element is suitable as a container for placeAt
+	 * @param {sap.ui.core.Element} oContainer
+	 * @returns {boolean} Whether the given UI5 element is suitable as a container
+	 * @private
+	 */
+	function isSuitableAsContainer(oContainer) {
+		var oContentAggInfo = oContainer.getMetadata().getAggregation("content");
+		if (oContentAggInfo) {
+			return oContentAggInfo.multiple && oContentAggInfo.type === "sap.ui.core.Control";
+		}
+		// use duck typing to allow placeAt even when there's no 'content' aggregation available.
+		// TODO This is a workaround for sap.ui.commons.AbsoluteLayout, abandon when it's removed
+		return (
+			typeof oContainer.addContent === "function"
+			&& typeof oContainer.insertContent === "function"
+			&& typeof oContainer.removeAllContent === "function"
+		);
+	}
 
 	/*
 	 * Event handling
@@ -785,10 +813,18 @@ sap.ui.define([
 
 	// ---- local busy indicator handling ---------------------------------------------------------------------------------------
 	var oRenderingDelegate = {
+		/**
+		 * @this {sap.ui.core.Control}
+		 * @private
+		 */
 		onBeforeRendering: function() {
 			// remove all block-layers to prevent leftover DOM elements and eventhandlers
 			fnRemoveAllBlockLayers.call(this);
 		},
+		/**
+		 * @this {sap.ui.core.Control}
+		 * @private
+		 */
 		onAfterRendering: function () {
 			if (this.getBlocked() && this.getDomRef() && !this.getDomRef("blockedLayer")) {
 				this._oBlockState = BlockLayerUtils.block(this, this.getId() + "-blockedLayer", this._sBlockSection);
@@ -942,6 +978,9 @@ sap.ui.define([
 	 * @returns {this} <code>this</code> to allow method chaining
 	 * @private
 	 * @ui5-restricted sap.ui.core, sap.m, sap.viz
+	 * @deprecated since version 1.69, the blocked property is deprecated.
+	 * There is no accessibility support for this property.
+	 * Blocked controls should not be used inside Controls, which rely on keyboard navigation, e.g. List controls.
 	 */
 	Control.prototype.setBlocked = function(bBlocked, sBlockedSection /* this is an internal parameter to apply partial blocking for a specific section of the control */) {
 		//If the new state is already set, we don't need to do anything
@@ -955,7 +994,8 @@ sap.ui.define([
 
 		if (bBlocked) {
 			this.addDelegate(oRenderingDelegate, false, this);
-		} else {
+		} else if (!this.getBusy()) {
+			// only remove delegate if control is not still in "busy" state
 			this.removeDelegate(oRenderingDelegate);
 		}
 
@@ -1025,7 +1065,11 @@ sap.ui.define([
 			Interaction.notifyShowBusyIndicator(this);
 			this.addDelegate(oRenderingDelegate, false, this);
 		} else {
-			this.removeDelegate(oRenderingDelegate);
+			// only remove the delegate if the control is not still in "blocked" state
+			if (!this.getProperty("blocked")) {
+				this.removeDelegate(oRenderingDelegate);
+			}
+
 			//If there is a pending delayed call we clear it
 			if (this._busyIndicatorDelayedCallId) {
 				clearTimeout(this._busyIndicatorDelayedCallId);
@@ -1188,34 +1232,47 @@ sap.ui.define([
 	 * <pre>
 	 * MyControl.prototype.getAccessibilityInfo = function() {
 	 *    return {
-	 *      role: "textbox",      // String which represents the WAI-ARIA role which is implemented by the control.
-	 *      type: "date input",   // String which represents the control type (Must be a translated text). Might correlate with
-	 *                            // the role.
-	 *      description: "value", // String which describes the most relevant control state (e.g. the inputs value). Must be a
-	 *                            // translated text.
-	 *                            // Note: The type and the enabled/editable state must not be handled here.
-	 *      focusable: true,      // Boolean which describes whether the control can get the focus.
-	 *      enabled: true,        // Boolean which describes whether the control is enabled. If not relevant it must not be set or
-	 *                            // <code>null</code> can be provided.
-	 *      editable: true,       // Boolean which describes whether the control is editable. If not relevant it must not be set or
-	 *                            // <code>null</code> can be provided.
-	 *      children: []          // Aggregations of the given control (e.g. when the control is a layout). Primitive aggregations will be ignored.
-	 *                            // Note: Children should only be provided when it is helpful to understand the accessibility context
-	 *                            //       (e.g. a form control must not provide details of its internals (fields, labels, ...) but a
-	 *                            //       layout should).
+	 *      role: "textbox",
+	 *      type: "date input",
+	 *      description: "value",
+	 *      focusable: true,
+	 *      enabled: true,
+	 *      editable: true,
+	 *      required: true,
+	 *      children: []
 	 *    };
 	 * };
 	 * </pre>
 	 *
 	 * Note: The returned object provides the accessibility state of the control at the point in time when this function is called.
 	 *
-	 * @return {object} Current accessibility state of the control.
+	 * @return {sap.ui.core.AccessibilityInfo} Current accessibility state of the control.
 	 * @since 1.37.0
 	 * @function
 	 * @name sap.ui.core.Control.prototype.getAccessibilityInfo
 	 * @protected
 	 */
 	//Control.prototype.getAccessibilityInfo = function() { return null; };
+
+	/**
+	 * Returns a list of all controls with a field group ID.
+	 * See {@link sap.ui.core.Control#checkFieldGroupIds Control.prototype.checkFieldGroupIds} for a description of the
+	 * <code>vFieldGroupIds</code> parameter.
+	 *
+	 * If possible please use the respective method on a Control instance (see {@link sap.ui.core.Control#getControlsByFieldGroupId}).
+	 * The control method only respects aggregated child controls, which is more effective and should be sufficient for most use-cases.
+	 *
+	 * @param {string|string[]} [vFieldGroupIds] ID of the field group or an array of field group IDs to match
+	 * @return {sap.ui.core.Control[]} The list of controls with matching field group IDs
+	 * @static
+	 * @since 1.118
+	 * @public
+	 */
+	Control.getControlsByFieldGroupId = function(vFieldGroupIds) {
+		return Element.registry.filter((oElement) => {
+			return oElement.isA("sap.ui.core.Control") && oElement.checkFieldGroupIds(vFieldGroupIds);
+		});
+	};
 
 	return Control;
 

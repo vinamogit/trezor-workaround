@@ -1,6 +1,6 @@
-/*
- * ! OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+/*!
+ * OpenUI5
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -60,14 +60,13 @@ sap.ui.define([
 	 *        tables.
 	 * @extends sap.m.Dialog
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @constructor
 	 * @deprecated as of version 1.98. Use the {@link sap.m.p13n.Popup} instead.
 	 * @public
 	 * @since 1.26.0
 	 * @alias sap.m.P13nDialog
 	 * @see {@link topic:a3c3c5eb54bc4cc38e6cfbd8e90c6a01 Personalization Dialog}
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var P13nDialog = Dialog.extend("sap.m.P13nDialog", /** @lends sap.m.P13nDialog.prototype */
 	{
@@ -259,6 +258,7 @@ sap.ui.define([
 					MessageBox.show(sMessageText, {
 						icon: MessageBox.Icon.WARNING,
 						title: sap.ui.getCore().getLibraryResourceBundle("sap.m").getText("P13NDIALOG_VALIDATION_TITLE"),
+						emphasizedAction: sap.ui.getCore().getLibraryResourceBundle("sap.m").getText("P13NDIALOG_VALIDATION_FIX"),
 						actions: [
 							sap.ui.getCore().getLibraryResourceBundle("sap.m").getText("P13NDIALOG_VALIDATION_FIX"), MessageBox.Action.IGNORE
 						],
@@ -426,6 +426,7 @@ sap.ui.define([
 	 * Returns panel.
 	 *
 	 * @private
+	 * @returns {sap.m.P13nPanel|null}
 	 */
 	P13nDialog.prototype._getPanelByNavigationItem = function(oNavigationItem) {
 		for (var i = 0, aPanels = this.getPanels(), iPanelsLength = aPanels.length; i < iPanelsLength; i++) {
@@ -440,6 +441,7 @@ sap.ui.define([
 	 * Returns NavigationItem.
 	 *
 	 * @private
+	 * @returns {sap.m.SegmentedButtonItem | sap.m.StandardListItem | null}
 	 */
 	P13nDialog.prototype._getNavigationItemByPanel = function(oPanel) {
 		return oPanel ? oPanel.data("sapMP13nDialogNavigationItem") : null;

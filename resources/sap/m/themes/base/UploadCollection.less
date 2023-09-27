@@ -104,7 +104,6 @@
 .sapMUCFileName.sapMLnk {
 	font-family:		@sapUiFontFamily;
 	font-weight:		normal;
-	white-space:		nowrap;
 	padding-top:		0.25rem; /* Padding top instead of padding bottom due to in-line placement with Objectmarker */
 	overflow:			hidden;
 	text-overflow:		ellipsis;
@@ -156,6 +155,7 @@
 	text-align: center;
 	background: @sapUiGroupContentBackground;
 	display: block;
+	min-height: 500px;
 
 	.sapUiIcon {
 		color: fade(@sapUiContentNonInteractiveIconColor, 50);
@@ -345,7 +345,7 @@
 		white-space: nowrap; /* so that buttons are displayed in a row */
 		padding-left: 1rem;
 		padding-top: 0rem;
-		align-self: flex-end; /* for buttons alignment at the bottom */
+		align-self: center; /* for buttons alignment at the center */
 		flex: none;
 	}
 }
@@ -416,10 +416,12 @@
 
 .sapUiSizeCompact .sapMUCItem .sapMLIBSelectM {
 	padding-left: 0.3rem;
+	width: 2.75rem;
 }
 
 .sapUiSizeCozy .sapMUCItem .sapMLIBSelectM {
 	padding-left: 0;
+	width: 2.75rem;
 }
 
 /* Item Icon */

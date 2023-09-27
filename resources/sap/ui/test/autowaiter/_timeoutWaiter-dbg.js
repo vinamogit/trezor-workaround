@@ -1,14 +1,14 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 sap.ui.define([
+	"sap/base/util/extend",
 	"sap/ui/test/autowaiter/_utils",
-	"sap/ui/thirdparty/jquery",
 	"./WaiterBase"
-], function(_utils, jQueryDOM, WaiterBase) {
+], function(extend, _utils, WaiterBase) {
 	"use strict";
 
 	var mTimeouts = {};
@@ -35,14 +35,14 @@ sap.ui.define([
 			return bHasBlockingTimeouts;
 		},
 		_getDefaultConfig: function () {
-			return jQueryDOM.extend({
+			return extend({
 				maxDepth: 1, 		// count
 				maxDelay: 1000, 	// milliseconds
 				minDelay: 10 		// milliseconds
 			}, WaiterBase.prototype._getDefaultConfig.call(this));
 		},
 		_getValidationInfo: function () {
-			return jQueryDOM.extend({
+			return extend({
 				maxDepth: "numeric",
 				maxDelay: "numeric",
 				minDelay: "numeric"

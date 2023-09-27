@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -9,14 +9,23 @@ sap.ui.define([
 	"sap/base/Log",
 	"sap/ui/core/Control",
 	"./IllustrationRenderer",
-	"./IllustrationPool"
+	"./IllustrationPool",
+	"sap/ui/core/Core"
 ], function(
 	Log,
 	Control,
 	IllustrationRenderer,
-	IllustrationPool
+	IllustrationPool,
+	Core
 ) {
 	"use strict";
+
+	var oCollectionMap = {
+		"sap_horizon": 'v5/',
+		"sap_horizon_dark": 'v5/',
+		"sap_horizon_hcb": 'v5/hc/',
+		"sap_horizon_hcw": 'v5/hc/'
+	};
 
 	/**
 	 * Constructor for a new <code>Illustration</code>.
@@ -32,13 +41,12 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.98
 	 * @alias sap.m.Illustration
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var Illustration = Control.extend("sap.m.Illustration", /** @lends sap.m.Illustration.prototype */ {
 		metadata: {
@@ -65,8 +73,17 @@ sap.ui.define([
 				 */
 				type: {type: "string", defaultValue: null}
 			},
+			associations : {
+				/**
+				 * Association to controls / IDs which label those controls (see WAI-ARIA attribute aria-labelledBy).
+	 			 * @since 1.106.0
+				 */
+				ariaLabelledBy: {type : "sap.ui.core.Control", multiple : true, singularName : "ariaLabelledBy"}
+			},
 			dnd: { draggable: true, droppable: false }
-		}
+		},
+
+		renderer: IllustrationRenderer
 	});
 
 	/**
@@ -86,10 +103,14 @@ sap.ui.define([
 	Illustration.prototype.onBeforeRendering = function() {
 		this._buildSymbolId();
 		if (this._sSymbolId) {
-			IllustrationPool.loadAsset(this._sSymbolId, this._sId);
+			IllustrationPool.loadAsset(this._sSymbolId, this._sId, this._sIdPrefix);
 		} else {
 			Log.warning(Illustration.CAN_NOT_BUILD_SYMBOL_MSG);
 		}
+	};
+
+	Illustration.prototype.onThemeChanged = function() {
+		this.invalidate();
 	};
 
 	/**
@@ -98,18 +119,57 @@ sap.ui.define([
 
 	/**
 	 * Builds the Symbol ID which will be used for requiring the Illustration asset.
+	 * If mapping is provided for the current theme, the Symbol ID will be built using the mapped type.
 	 * @private
 	 */
-	Illustration.prototype._buildSymbolId = function() {
+	Illustration.prototype._buildSymbolId = function () {
 		var sSet = this.getSet(),
 			sMedia = this.getMedia(),
-			sType = this.getType();
+			sType = this.getType(),
+			oResult;
 
 		this._sSymbolId = "";
+		this._sIdPrefix = "";
 
 		if (sSet && sMedia && sType) {
-			this._sSymbolId = sSet + "-" + sMedia + "-" + sType;
+			oResult = this._formatType(sSet, sType);
+			this._sSymbolId = sSet + "-" + sMedia + "-" + oResult.mappedType;
+			this._sIdPrefix = oResult.prefix;
 		}
+	};
+
+	/**
+	 * Formats the type of the Illustration based on the current theme.
+	 * @param {string} sSet The name of the Illustration set
+	 * @param {string} sType The type of the Illustration
+	 * @returns {string} The formatted type of the Illustration
+	 * @private
+	 */
+	Illustration.prototype._formatType = function (sSet, sType) {
+		var sMappedType = sType,
+			sPrefix = "",
+			oMetadata = IllustrationPool.getIllustrationSetMetadata(sSet),
+			sCurrentTheme = Core.getConfiguration().getTheme(),
+			sCollectionPath = oCollectionMap[sCurrentTheme];
+
+		if (
+			sCollectionPath &&
+			oMetadata &&
+			oMetadata.aCollections &&
+			oMetadata.aCollections.length
+		) {
+			oMetadata.aCollections.forEach(function (oThemeMapping) {
+				if (oThemeMapping.prefix === sCollectionPath && oThemeMapping.mappings[sType]) {
+					sMappedType = oThemeMapping.mappings[sType];
+					sPrefix = oThemeMapping.prefix;
+				}
+			});
+		}
+
+		return {
+			mappedType: sMappedType,
+			prefix: sPrefix
+		};
 	};
 
 	return Illustration;

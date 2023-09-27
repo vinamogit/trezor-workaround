@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -11,11 +11,15 @@ sap.ui.define([
 	"./WizardStepRenderer",
 	"./Button",
 	"./TitlePropagationSupport",
-	"sap/base/Log"
+	"sap/base/Log",
+	"sap/ui/core/library"
 ],
-	function(library, Control, InvisibleText, WizardStepRenderer, Button, TitlePropagationSupport, Log) {
+	function(library, Control, InvisibleText, WizardStepRenderer, Button, TitlePropagationSupport, Log, coreLibrary) {
 
 	"use strict";
+
+	// shortcut for sap.ui.core.TitleLevel
+	var TitleLevel = coreLibrary.TitleLevel;
 
 	/**
 	 * Constructor for a new WizardStep.
@@ -36,13 +40,12 @@ sap.ui.define([
 	 * <li>If the execution needs to branch after a given step, you should set all possible next steps in the <code>subsequentSteps</code> aggregation.
 	 * @extends sap.ui.core.Control
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.30
 	 * @alias sap.m.WizardStep
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var WizardStep = Control.extend("sap.m.WizardStep", /** @lends sap.m.WizardStep.prototype */ {
 		metadata: {
@@ -70,7 +73,17 @@ sap.ui.define([
 				 * When a step is optional an "(Optional)" label is displayed under the step's title.
 				 * @since 1.54
 				 */
-				optional: {type: "boolean", group: "Appearance", defaultValue: false}
+				optional: {type: "boolean", group: "Appearance", defaultValue: false},
+				/**
+				 * Defines the semantic level of the step title.
+				 * @private
+				 */
+				_titleLevel: {
+					type: "sap.ui.core.TitleLevel",
+					group: "Appearance",
+					defaultValue: TitleLevel.H3,
+					visibility: "hidden"
+				}
 			},
 			events: {
 				/**
@@ -104,6 +117,8 @@ sap.ui.define([
 				 * This association is used only when the <code>enableBranching</code> property of the Wizard is set to true.
 				 * Use the association to store the next steps that are about to come after the current.
 				 * If this is going to be a final step - leave this association empty.
+				 * <strong>NOTE:</strong> The association needs to be set prior the step is shown. Dynamical addition of subsequent steps is not supported use case
+				 * especially when the current step is final (the association was empty before the step was displayed).
 				 * @since 1.32
 				 */
 				subsequentSteps : {type : "sap.m.WizardStep", multiple : true, singularName : "subsequentStep"},
@@ -114,7 +129,9 @@ sap.ui.define([
 				 */
 				nextStep : {type: "sap.m.WizardStep", multiple: false}
 			}
-		}
+		},
+
+		renderer: WizardStepRenderer
 	});
 
 	// shortcut for sap.m.ButtonType
@@ -203,6 +220,24 @@ sap.ui.define([
 
 		return this;
 	};
+
+	/**
+	 * Sets the title property of the WizardStep.
+	 * @param {string} sNewTitle The new WizardStep title.
+	 * @returns {sap.m.WizardStep} this instance for method chaining.
+	 * @public
+	 */
+	WizardStep.prototype.setTitle = function (sNewTitle) {
+		var oWizard = this._getWizardParent();
+
+		this.setProperty("title", sNewTitle);
+		if (oWizard) {
+			oWizard._updateProgressNavigator();
+		}
+
+		return this;
+	};
+
 	/**
 	 * setVisible shouldn't be used on wizard steps.
 	 * If you need to show/hide steps based on some condition - use the branching property instead.
@@ -245,10 +280,7 @@ sap.ui.define([
 	WizardStep.prototype._getWizardParent = function () {
 		var oParent = this.getParent();
 
-		while (!(oParent instanceof sap.m.Wizard)) {
-			if (oParent === null) {
-				return null;
-			}
+		while (oParent && !oParent.isA("sap.m.Wizard")) {
 			oParent = oParent.getParent();
 		}
 

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -14,6 +14,7 @@ sap.ui.define([
 	'./History',
 	'sap/ui/thirdparty/crossroads',
 	"sap/base/util/UriParameters",
+	"sap/base/util/each",
 	"sap/base/util/deepEqual",
 	"sap/base/util/isEmptyObject",
 	"sap/base/Log",
@@ -31,6 +32,7 @@ sap.ui.define([
 		History,
 		crossroads,
 		UriParameters,
+		each,
 		deepEqual,
 		isEmptyObject,
 		Log,
@@ -48,7 +50,9 @@ sap.ui.define([
 		 * @class
 		 * @extends sap.ui.base.EventProvider
 		 *
-		 * @param {object|object[]} [oRoutes] may contain many Route configurations as {@link sap.ui.core.routing.Route#constructor}.<br/>
+		 * @param {Object<string,sap.ui.core.routing.$RouteSettings>|Array<sap.ui.core.routing.$RouteSettings>} [oRoutes]
+		 *  may contain many Route configurations as {@link sap.ui.core.routing.Route#constructor}.<br/>
+		 *
 		 * Each of the routes contained in the array/object will be added to the router.<br/>
 		 *
 		 * One way of defining routes is an array:
@@ -176,7 +180,7 @@ sap.ui.define([
 		 * @param {sap.ui.core.UIComponent} [oOwner] the Component of all the views that will be created by this Router,<br/>
 		 * will get forwarded to the {@link sap.ui.core.routing.Views#constructor}.<br/>
 		 * If you are using the componentMetadata to define your routes you should skip this parameter.
-		 * @param {object} [oTargetsConfig] Since 1.28 the target configuration, see {@link sap.ui.core.routing.Targets#constructor} documentation (the options object).<br/>
+		 * @param {Object<string,sap.ui.core.routing.$TargetSettings>} [oTargetsConfig] Since 1.28 the target configuration, see {@link sap.ui.core.routing.Targets#constructor} documentation (the options object).<br/>
 		 * You should use Targets to create and display views. Since 1.28 the route should only contain routing relevant properties.<br/>
 		 * <b>Example:</b>
 		 * <pre>
@@ -288,14 +292,14 @@ sap.ui.define([
 					});
 				}
 
-				jQuery.each(oRoutes, function(sRouteName, oRouteConfig) {
+				each(oRoutes, function(sRouteName, oRouteConfig) {
 					if (oRouteConfig.name === undefined) {
 						oRouteConfig.name = sRouteName;
 					}
 					that.addRoute(oRouteConfig);
 				});
 
-				this._oRouter.bypassed.add(jQuery.proxy(this._onBypassed, this));
+				this._oRouter.bypassed.add(this._onBypassed.bind(this));
 
 				if (!oRouterHashChanger) {
 					oRouterHashChanger = HashChanger.getInstance().createRouterHashChanger();
@@ -347,7 +351,7 @@ sap.ui.define([
 			/**
 			 * Adds a route to the router.
 			 *
-			 * @param {object} oConfig Configuration object for the route @see sap.ui.core.routing.Route#constructor
+			 * @param {sap.ui.core.routing.$RouteSettings} oConfig Configuration object for the route @see sap.ui.core.routing.Route#constructor
 			 * @param {sap.ui.core.routing.Route} oParent The parent route - if a parent route is given, the <code>routeMatched</code> event of this route will also trigger the <code>routeMatched</code> of the parent and it will also create the view of the parent (if provided).
 			 * @public
 			 */
@@ -592,7 +596,7 @@ sap.ui.define([
 				this._oRouter.removeAllRoutes();
 				this._oRouter = null;
 
-				jQuery.each(this._oRoutes, function(iRouteIndex, oRoute) {
+				each(this._oRoutes, function(iRouteIndex, oRoute) {
 					oRoute.destroy();
 				});
 				this._oRoutes = null;
@@ -660,7 +664,7 @@ sap.ui.define([
 			},
 
 			/**
-			 * @typedef {Object} sap.ui.core.routing.RouteInfo
+			 * @typedef {object} sap.ui.core.routing.RouteInfo
 			 * @property {string} name The route name
 			 * @property {Object.<string, string>} arguments The route data
 			 * @public
@@ -692,7 +696,7 @@ sap.ui.define([
 			 * Returns the route with the given name or <code>undefined</code> if no route is found.
 			 *
 			 * @param {string} sName Name of the route
-			 * @returns {sap.ui.core.routing.Route} Route with the provided name or <code>undefined</code>.
+			 * @returns {sap.ui.core.routing.Route|undefined} Route with the provided name or <code>undefined</code>.
 			 * @public
 			 * @since 1.25.1
 			 */
@@ -832,15 +836,15 @@ sap.ui.define([
 			 * @param {object} [oComponentTargetInfo.anyName.componentTargetInfo] The information for the targets within a
 			 *  nested component. This shares the same structure with the <code>oComponentTargetInfo</code> parameter.
 			 * @param {boolean} [bReplace=false]
-			*             If set to <code>true</code>, the hash is replaced, and there will be no entry in the browser
-			*             history. If set to <code>false</code>, the hash is set and the entry is stored in the browser
-			*             history.
+			 *             If set to <code>true</code>, the hash is replaced, and there will be no entry in the browser
+			 *             history. If set to <code>false</code>, the hash is set and the entry is stored in the browser
+			 *             history.
+			 * @ui5-omissible-params oComponentTargetInfo
 			 * @public
 			 * @returns {this} this for chaining.
 			 */
 			navTo : function (sName, oParameters, oComponentTargetInfo, bReplace) {
 				var that = this,
-					bRouteSwitched = this._getLastMatchedRouteName() !== sName,
 					oRoute = this.getRoute(sName),
 					pComponentHashChange, sHash;
 
@@ -853,6 +857,13 @@ sap.ui.define([
 					Log.warning("Route with name " + sName + " does not exist", this);
 					return this;
 				}
+
+				var bRouteSwitched = this._getLastMatchedRouteName() !== sName && this._sRouteInProgress !== sName;
+
+				// this property is set after navTo is called and is reset once the browser fires the next "hashChange"
+				// event. This is used to detect the parallel calls of 'navTo' when oComponentTargetInfo is given
+				// because it runs asynchronously when there's target info given to the nested component
+				this._sRouteInProgress = sName;
 
 				if (typeof oComponentTargetInfo === "boolean") {
 					bReplace = oComponentTargetInfo;
@@ -884,9 +895,9 @@ sap.ui.define([
 
 			/**
 			 * Returns the name of the last matched route.
-			 * If there's no route matched before, it returns undefined
+			 * If there's no route matched before, it returns <code>undefined</code>
 			 *
-			 * @returns {string} The name of the last matched route
+			 * @returns {string|undefined} The name of the last matched route
 			 */
 			_getLastMatchedRouteName: function() {
 				return this._oMatchedRoute && this._oMatchedRoute._oConfig.name;
@@ -1427,8 +1438,10 @@ sap.ui.define([
 						// check whether there's a duplicate history entry with the last history entry and remove it if there is
 						this._aHistory.some(function(oEntry, i, aHistory) {
 							if (i < aHistory.length - 1 && deepEqual(oEntry, oLastHistoryEntry)) {
-								return aHistory.splice(i, 1);
+								aHistory.splice(i, 1);
+								return true;
 							}
+							return false;
 						});
 					} else {
 						if (this._bLastHashReplaced) {
@@ -1622,7 +1635,7 @@ sap.ui.define([
 		 * Get a registered router.
 		 *
 		 * @param {string} sName Name of the router
-		 * @returns {sap.ui.core.routing.Router} The router with the specified name, else undefined
+		 * @returns {sap.ui.core.routing.Router|undefined} The router with the specified name, else <code>undefined</code>
 		 * @public
 		 */
 		Router.getRouter = function (sName) {

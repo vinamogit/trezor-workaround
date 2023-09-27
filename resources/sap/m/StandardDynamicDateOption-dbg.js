@@ -1,36 +1,26 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides control sap.m.StandardDynamicDateOption.
 sap.ui.define([
 		'sap/ui/core/library',
-		'sap/ui/core/Element',
 		'./DynamicDateOption',
 		'./Label',
-		'./StepInput',
 		'./RadioButton',
 		'./RadioButtonGroup',
-		'sap/ui/unified/Calendar',
-		'sap/ui/unified/calendar/MonthPicker',
-		'sap/ui/core/format/DateFormat',
 		'sap/ui/core/date/UniversalDateUtils',
 		'sap/ui/core/date/UniversalDate',
 		'sap/m/DynamicDateValueHelpUIType',
 		'./library'],
 	function(
 		coreLibrary,
-		Element,
 		DynamicDateOption,
 		Label,
-		StepInput,
 		RadioButton,
 		RadioButtonGroup,
-		Calendar,
-		MonthPicker,
-		DateFormat,
 		UniversalDateUtils,
 		UniversalDate,
 		DynamicDateValueHelpUIType,
@@ -52,16 +42,22 @@ sap.ui.define([
 		 * @extends sap.m.DynamicDateOption
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
-		 * @public
+		 * @private
 		 * @alias sap.m.StandardDynamicDateOption
-		 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
-		 * @experimental Since 1.92. This class is experimental and provides only limited functionality. Also the API might be changed in future.
 		 */
 		var StandardDynamicDateOption = DynamicDateOption.extend("sap.m.StandardDynamicDateOption", /** @lends sap.m.StandardDynamicDateOption.prototype */ {
 			metadata: {
-				library: "sap.m"
+				library: "sap.m",
+				properties: {
+					 /**
+					 * If set, the calendar week numbering is used for display.
+					 * If not set, the calendar week numbering of the global configuration is used.
+					 * @since 1.111.0
+					 */
+					calendarWeekNumbering: { type : "sap.ui.core.date.CalendarWeekNumbering", group : "Appearance", defaultValue: null}
+				}
 			}
 		});
 
@@ -70,11 +66,14 @@ sap.ui.define([
 
 		var Keys = {
 			"DATE": "DATE",
+			"DATETIME": "DATETIME",
 			"DATERANGE": "DATERANGE",
+			"DATETIMERANGE": "DATETIMERANGE",
 			"TODAY": "TODAY",
 			"YESTERDAY": "YESTERDAY",
 			"TOMORROW": "TOMORROW",
 			"SPECIFICMONTH": "SPECIFICMONTH",
+			"SPECIFICMONTHINYEAR": "SPECIFICMONTHINYEAR",
 			"FIRSTDAYWEEK": "FIRSTDAYWEEK",
 			"LASTDAYWEEK": "LASTDAYWEEK",
 			"FIRSTDAYMONTH":"FIRSTDAYMONTH",
@@ -95,11 +94,15 @@ sap.ui.define([
 			"NEXTMONTH": "NEXTMONTH",
 			"NEXTQUARTER": "NEXTQUARTER",
 			"NEXTYEAR": "NEXTYEAR",
+			"LASTMINUTES": "LASTMINUTES",
+			"LASTHOURS": "LASTHOURS",
 			"LASTDAYS": "LASTDAYS",
 			"LASTWEEKS": "LASTWEEKS",
 			"LASTMONTHS": "LASTMONTHS",
 			"LASTQUARTERS": "LASTQUARTERS",
 			"LASTYEARS": "LASTYEARS",
+			"NEXTMINUTES": "NEXTMINUTES",
+			"NEXTHOURS": "NEXTHOURS",
 			"NEXTDAYS": "NEXTDAYS",
 			"NEXTWEEKS": "NEXTWEEKS",
 			"NEXTMONTHS": "NEXTMONTHS",
@@ -107,6 +110,8 @@ sap.ui.define([
 			"NEXTYEARS": "NEXTYEARS",
 			"FROM": "FROM",
 			"TO": "TO",
+			"FROMDATETIME": "FROMDATETIME",
+			"TODATETIME": "TODATETIME",
 			"YEARTODATE": "YEARTODATE",
 			"DATETOYEAR":"DATETOYEAR",
 			"TODAYFROMTO": "TODAYFROMTO",
@@ -127,11 +132,14 @@ sap.ui.define([
 
 		var _OptionsGroup = {
 			"DATE": _Groups.SingleDates,
+			"DATETIME": _Groups.SingleDates,
 			"DATERANGE": _Groups.DateRanges,
+			"DATETIMERANGE": _Groups.DateRanges,
 			"TODAY": _Groups.SingleDates,
 			"YESTERDAY": _Groups.SingleDates,
 			"TOMORROW": _Groups.SingleDates,
 			"SPECIFICMONTH": _Groups.Months,
+			"SPECIFICMONTHINYEAR": _Groups.Months,
 			"FIRSTDAYWEEK": _Groups.SingleDates,
 			"LASTDAYWEEK": _Groups.SingleDates,
 			"FIRSTDAYMONTH":_Groups.SingleDates,
@@ -152,11 +160,15 @@ sap.ui.define([
 			"NEXTMONTH": _Groups.Months,
 			"NEXTQUARTER": _Groups.Quarters,
 			"NEXTYEAR": _Groups.Years,
+			"LASTMINUTES": _Groups.DateRanges,
+			"LASTHOURS": _Groups.DateRanges,
 			"LASTDAYS": _Groups.DateRanges,
 			"LASTWEEKS": _Groups.DateRanges,
 			"LASTMONTHS": _Groups.DateRanges,
 			"LASTQUARTERS": _Groups.DateRanges,
 			"LASTYEARS": _Groups.DateRanges,
+			"NEXTMINUTES": _Groups.DateRanges,
+			"NEXTHOURS": _Groups.DateRanges,
 			"NEXTDAYS": _Groups.DateRanges,
 			"NEXTWEEKS": _Groups.DateRanges,
 			"NEXTMONTHS": _Groups.DateRanges,
@@ -164,6 +176,8 @@ sap.ui.define([
 			"NEXTYEARS": _Groups.DateRanges,
 			"FROM": _Groups.DateRanges,
 			"TO": _Groups.DateRanges,
+			"FROMDATETIME": _Groups.DateRanges,
+			"TODATETIME": _Groups.DateRanges,
 			"YEARTODATE": _Groups.DateRanges,
 			"DATETOYEAR": _Groups.DateRanges,
 			"TODAYFROMTO": _Groups.DateRanges,
@@ -173,8 +187,8 @@ sap.ui.define([
 			"QUARTER4": _Groups.Quarters
 		};
 
-		var aLastOptions = ["LASTDAYS", "LASTWEEKS", "LASTMONTHS", "LASTQUARTERS", "LASTYEARS"];
-		var aNextOptions = ["NEXTDAYS", "NEXTWEEKS", "NEXTMONTHS", "NEXTQUARTERS", "NEXTYEARS"];
+		var aLastOptions = ["LASTMINUTES", "LASTHOURS", "LASTDAYS", "LASTWEEKS", "LASTMONTHS", "LASTQUARTERS", "LASTYEARS"];
+		var aNextOptions = ["NEXTMINUTES", "NEXTHOURS", "NEXTDAYS", "NEXTWEEKS", "NEXTMONTHS", "NEXTQUARTERS", "NEXTYEARS"];
 
 		StandardDynamicDateOption.LastXKeys = aLastOptions;
 		StandardDynamicDateOption.NextXKeys = aNextOptions;
@@ -210,17 +224,27 @@ sap.ui.define([
 			}
 
 			switch (sKey) {
+				case Keys.LASTMINUTES:
+				case Keys.LASTHOURS:
 				case Keys.LASTDAYS:
 				case Keys.LASTWEEKS:
 				case Keys.LASTMONTHS:
 				case Keys.LASTQUARTERS:
 				case Keys.LASTYEARS:
+				case Keys.NEXTMINUTES:
+				case Keys.NEXTHOURS:
 				case Keys.NEXTDAYS:
 				case Keys.NEXTWEEKS:
 				case Keys.NEXTMONTHS:
 				case Keys.NEXTQUARTERS:
 				case Keys.NEXTYEARS:
 					return this._getXPeriodTitle(aParams[1].getOptions());
+				case Keys.FROMDATETIME:
+				case Keys.TODATETIME:
+				case Keys.DATETIMERANGE:
+					return oControl._findOption(sKey)._bAdditionalTimeText ?
+						_resourceBundle.getText("DYNAMIC_DATE_" + sKey + "_TITLE") + " (" + _resourceBundle.getText("DYNAMIC_DATE_DATETIME_TITLE") + ")" :
+						_resourceBundle.getText("DYNAMIC_DATE_" + sKey + "_TITLE");
 				default:
 					return _resourceBundle.getText("DYNAMIC_DATE_" + sKey + "_TITLE");
 			}
@@ -262,6 +286,14 @@ sap.ui.define([
 					case Keys.QUARTER4:
 						this.aValueHelpUITypes = [];
 						break;
+					case Keys.DATETIME:
+					case Keys.FROMDATETIME:
+					case Keys.TODATETIME:
+						this.aValueHelpUITypes = [
+							new DynamicDateValueHelpUIType({
+								type: "datetime"
+							})];
+						break;
 					case Keys.DATE:
 					case Keys.FROM:
 					case Keys.TO:
@@ -282,11 +314,21 @@ sap.ui.define([
 								type: "month"
 							})];
 						break;
+					case Keys.SPECIFICMONTHINYEAR:
+						this.aValueHelpUITypes = [
+							new DynamicDateValueHelpUIType({
+								type: "custommonth"
+							})];
+						break;
+					case Keys.LASTMINUTES:
+					case Keys.LASTHOURS:
 					case Keys.LASTDAYS:
 					case Keys.LASTWEEKS:
 					case Keys.LASTMONTHS:
 					case Keys.LASTQUARTERS:
 					case Keys.LASTYEARS:
+					case Keys.NEXTMINUTES:
+					case Keys.NEXTHOURS:
 					case Keys.NEXTDAYS:
 					case Keys.NEXTWEEKS:
 					case Keys.NEXTMONTHS:
@@ -311,6 +353,17 @@ sap.ui.define([
 								additionalText: _resourceBundle.getText("DDR_TODAYFROMTO_TO_ADDITIONAL_LABEL")
 							})];
 						break;
+					case Keys.DATETIMERANGE:
+							this.aValueHelpUITypes = [
+								new DynamicDateValueHelpUIType({
+									text: _resourceBundle.getText("DDR_DATETIMERANGE_FROM_LABEL"),
+									type: "datetime"
+								}),
+								new DynamicDateValueHelpUIType({
+									text: _resourceBundle.getText("DDR_DATETIMERANGE_TO_LABEL"),
+									type: "datetime"
+								})];
+							break;
 				}
 			}
 
@@ -319,22 +372,26 @@ sap.ui.define([
 
 		/**
 		 * Creates a UI for this DynamicDateOption.
-		 * @param {*} oOptions some parameters that can adapt the UI from outside
+		 * @param {sap.m.DynamicDateRange} oControl to create the UI for
 		 * @param {function} fnControlsUpdated A callback invoked when any of the created controls updates its value
 		 *
-		 * Returns an array of controls which is mapped to the parameters of this DynamicDateOption.
+		 * @return {sap.ui.core.Control[]} Returns an array of controls which is mapped to the parameters of this DynamicDateOption.
 		 */
 		StandardDynamicDateOption.prototype.createValueHelpUI = function(oControl, fnControlsUpdated) {
-			var oOptions = oControl._getOptions();
-			var oValue = oControl.getValue();
-			var aParams = this.getValueHelpUITypes(oControl);
-			var aControls = [];
+			var oOptions = oControl._getOptions(),
+				oValue = oControl.getValue() && Object.assign({}, oControl.getValue()),
+				aParams = this.getValueHelpUITypes(oControl),
+				aControls = [],
+				oCurrentLabel,
+				sCalendarWeekNumbering = oControl.getCalendarWeekNumbering();
+
 			if (!oControl.aControlsByParameters) {
 				oControl.aControlsByParameters = {};
 			}
 			oControl.aControlsByParameters[this.getKey()] = [];
-			var oLastOptionParam = this._getOptionParams(aLastOptions, oOptions);
-			var oNextOptionParam = this._getOptionParams(aNextOptions, oOptions);
+
+			var oLastOptionParam = this._getOptionParams(aLastOptions, oOptions),
+				oNextOptionParam = this._getOptionParams(aNextOptions, oOptions);
 
 			if (oLastOptionParam) {
 				aParams.push(oLastOptionParam);
@@ -344,16 +401,22 @@ sap.ui.define([
 				aParams.push(oNextOptionParam);
 			}
 
+			if (oValue && oValue.values) {
+				oValue.values = oValue.values.map(function(val) {
+					return val;
+				});
+			}
+
 			for (var iIndex = 0; iIndex < aParams.length; iIndex++) {
+				oCurrentLabel = null;
 				if (aParams[iIndex].getOptions() && aParams[iIndex].getOptions().length <= 1) {
 					break;
-				} else if (aParams[iIndex].getText()) {
-					aControls.push(
-						new Label({
-							text: aParams[iIndex].getText(),
-							width: "100%"
-						})
-					);
+				} else if (aParams[ iIndex ].getText()) {
+					oCurrentLabel = new Label({
+						text: aParams[ iIndex ].getText(),
+						width: "100%"
+					});
+					aControls.push(oCurrentLabel);
 				}
 
 				var oInputControl;
@@ -368,20 +431,34 @@ sap.ui.define([
 						}
 						break;
 					case "date":
-						oInputControl = this._createDateControl(oValue, iIndex, fnControlsUpdated);
+						oInputControl = this._createDateControl(oValue, iIndex, fnControlsUpdated, sCalendarWeekNumbering);
+						break;
+					case "datetime":
+						if (aParams.length === 1) {
+							// creates "single" DateTime option (embedded in the DynamicDateRange popup)
+							oInputControl = this._createDateTimeInnerControl(oValue, iIndex, fnControlsUpdated, sCalendarWeekNumbering);
+						} else if (aParams.length === 2) {
+							oInputControl = this._createDateTimeControl(oValue, iIndex, fnControlsUpdated, sCalendarWeekNumbering);
+						}
 						break;
 					case "daterange":
-						oInputControl = this._createDateRangeControl(oValue, iIndex, fnControlsUpdated);
+						oInputControl = this._createDateRangeControl(oValue, iIndex, fnControlsUpdated, sCalendarWeekNumbering);
 					break;
 					case "month":
 						oInputControl = this._createMonthControl(oValue, iIndex, fnControlsUpdated);
 						break;
+					case "custommonth":
+						oInputControl = this._createCustomMonthControl(oValue, iIndex, fnControlsUpdated);
+						break;
 					case "options":
 						oInputControl = this._createOptionsControl(oValue, iIndex, fnControlsUpdated, aParams);
+						break;
+					default:
 						break;
 				}
 
 				aControls.push(oInputControl);
+				oCurrentLabel && oCurrentLabel.setLabelFor(oInputControl);
 
 				if (aParams[iIndex].getAdditionalText()) {
 					aControls.push(
@@ -402,7 +479,7 @@ sap.ui.define([
 			var iMin = this.getKey() === "TODAYFROMTO" ? -MAX_VALUE_HELP_INTEGER : MIN_VALUE_HELP_INTEGER;
 			var bUseDefaultValue = !oValue || this.getKey() !== oValue.operator;
 
-			if (this.getKey() === "TODAYFROMTO" && bUseDefaultValue) {
+			if (bUseDefaultValue) {
 				oControl.setValue(1);
 			}
 
@@ -474,9 +551,20 @@ sap.ui.define([
 						}
 						break;
 					case "month":
+					case "custommonth":
 					case "date":
 					case "daterange":
 						if (!oInputControl.getSelectedDates() || oInputControl.getSelectedDates().length == 0) {
+							return false;
+						}
+						break;
+					case "datetime":
+						if (aParams.length === 1) {
+							// validates "single" DateTime option (embedded in the DynamicDateRange popup)
+							if (!oInputControl.getCalendar().getSelectedDates() || oInputControl.getCalendar().getSelectedDates().length == 0) {
+								return false;
+							}
+						} else if (!oInputControl.getDateValue() && aParams.length === 2) {
 							return false;
 						}
 						break;
@@ -484,6 +572,8 @@ sap.ui.define([
 						if (oInputControl.getSelectedIndex() < 0) {
 							return false;
 						}
+						break;
+					default:
 						break;
 				}
 			}
@@ -527,12 +617,44 @@ sap.ui.define([
 
 						vOutput = oInputControl.getSelectedDates()[0].getStartDate().getMonth();
 						break;
+					case "custommonth":
+						if (!oInputControl.getSelectedDates() || !oInputControl.getSelectedDates().length) {
+							return null;
+						}
+
+						vOutput = [oInputControl.getSelectedDates()[0].getStartDate().getMonth(), oInputControl.getSelectedDates()[0].getStartDate().getFullYear()];
+						break;
 					case "date":
 						if (!oInputControl.getSelectedDates().length) {
 							return null;
 						}
 
 						vOutput = oInputControl.getSelectedDates()[0].getStartDate();
+						break;
+					case "datetime":
+						if (aParams.length === 1) {
+							// "single" DateTime picker (embedded in the DynamicDateRange popup)
+							var oDate,
+								oTimeDate,
+								oCalendar,
+								oClocks;
+
+							oCalendar = oInputControl.getCalendar();
+							oClocks = oInputControl.getClocks();
+							if (!oCalendar.getSelectedDates().length) {
+								return null;
+							}
+							oDate = oCalendar.getSelectedDates()[0].getStartDate();
+							oTimeDate = oClocks.getTimeValues();
+							oDate.setHours(oTimeDate.getHours(), oTimeDate.getMinutes(), oTimeDate.getSeconds());
+							vOutput = oDate;
+						} else if (aParams.length === 2) {
+							if (!oInputControl.getDateValue()) {
+								return null;
+							}
+
+							vOutput = oInputControl.getDateValue();
+						}
 						break;
 					case "daterange":
 						if (!oInputControl.getSelectedDates().length) {
@@ -541,6 +663,8 @@ sap.ui.define([
 
 						var oEndDate = oInputControl.getSelectedDates()[0].getEndDate() || oInputControl.getSelectedDates()[0].getStartDate();
 						vOutput = [oInputControl.getSelectedDates()[0].getStartDate(), oEndDate];
+						break;
+					default:
 						break;
 				}
 
@@ -563,14 +687,14 @@ sap.ui.define([
 		};
 
 		StandardDynamicDateOption.prototype.format = function(oObj, oFormatter) {
-			return oFormatter.format(oObj);
+			return oFormatter.format(oObj, true);
 		};
 
 		StandardDynamicDateOption.prototype.parse = function(sValue, oFormatter) {
 			return oFormatter.parse(sValue, this.getKey());
 		};
 
-		StandardDynamicDateOption.prototype.toDates = function(oValue) {
+		StandardDynamicDateOption.prototype.toDates = function(oValue, sCalendarWeekNumbering) {
 			if (!oValue) {
 				return null;
 			}
@@ -584,13 +708,30 @@ sap.ui.define([
 					oDate.setMonth(oValue.values[0]);
 					oDate = UniversalDateUtils.getMonthStartDate(oDate);
 					return UniversalDateUtils.getRange(0, "MONTH", oDate);
+				case "SPECIFICMONTHINYEAR":
+					var oDate = new UniversalDate();
+					oDate.setMonth(oValue.values[0]);
+					oDate.setFullYear(oValue.values[1]);
+					oDate = UniversalDateUtils.getMonthStartDate(oDate);
+					return UniversalDateUtils.getRange(0, "MONTH", oDate);
 				case "DATE":
 					return UniversalDateUtils.getRange(0, "DAY", UniversalDate.getInstance(oValue.values[0]));
+				case "DATETIME":
+					var oDateTime = new UniversalDate.getInstance(oValue.values[0]);
+					return [oDateTime, oDateTime];
 				case "DATERANGE":
 					var oStart = UniversalDate.getInstance(oValue.values[0]);
 					var oEnd = UniversalDate.getInstance(oValue.values[1]);
 
 					return [UniversalDateUtils.resetStartTime(oStart), UniversalDateUtils.resetEndTime(oEnd)];
+				case "DATETIMERANGE":
+					var oStart = UniversalDate.getInstance(oValue.values[0]);
+					var oEnd = UniversalDate.getInstance(oValue.values[1]);
+
+					oStart.setMilliseconds(0);
+					oEnd.setMilliseconds(999);
+
+					return [oStart, oEnd];
 				case "TODAY":
 					return UniversalDateUtils.ranges.today();
 				case "YESTERDAY":
@@ -598,9 +739,9 @@ sap.ui.define([
 				case "TOMORROW":
 					return UniversalDateUtils.ranges.tomorrow();
 				case "FIRSTDAYWEEK":
-					return UniversalDateUtils.ranges.firstDayOfWeek();
+					return UniversalDateUtils.ranges.firstDayOfWeek(sCalendarWeekNumbering);
 				case "LASTDAYWEEK":
-					return UniversalDateUtils.ranges.lastDayOfWeek();
+					return UniversalDateUtils.ranges.lastDayOfWeek(sCalendarWeekNumbering);
 				case "FIRSTDAYMONTH":
 					return UniversalDateUtils.ranges.firstDayOfMonth();
 				case "LASTDAYMONTH":
@@ -614,7 +755,7 @@ sap.ui.define([
 				case "LASTDAYYEAR":
 					return UniversalDateUtils.ranges.lastDayOfYear();
 				case "THISWEEK":
-					return UniversalDateUtils.ranges.currentWeek();
+					return UniversalDateUtils.ranges.currentWeek(sCalendarWeekNumbering);
 				case "THISMONTH":
 					return UniversalDateUtils.ranges.currentMonth();
 				case "THISQUARTER":
@@ -622,7 +763,7 @@ sap.ui.define([
 				case "THISYEAR":
 					return UniversalDateUtils.ranges.currentYear();
 				case "LASTWEEK":
-					return UniversalDateUtils.ranges.lastWeek();
+					return UniversalDateUtils.ranges.lastWeek(sCalendarWeekNumbering);
 				case "LASTMONTH":
 					return UniversalDateUtils.ranges.lastMonth();
 				case "LASTQUARTER":
@@ -630,27 +771,35 @@ sap.ui.define([
 				case "LASTYEAR":
 					return UniversalDateUtils.ranges.lastYear();
 				case "NEXTWEEK":
-					return UniversalDateUtils.ranges.nextWeek();
+					return UniversalDateUtils.ranges.nextWeek(sCalendarWeekNumbering);
 				case "NEXTMONTH":
 					return UniversalDateUtils.ranges.nextMonth();
 				case "NEXTQUARTER":
 					return UniversalDateUtils.ranges.nextQuarter();
 				case "NEXTYEAR":
 					return UniversalDateUtils.ranges.nextYear();
+				case "LASTMINUTES":
+					return UniversalDateUtils.ranges.lastMinutes(iParamLastNext);
+				case "LASTHOURS":
+					return UniversalDateUtils.ranges.lastHours(iParamLastNext);
 				case "LASTDAYS":
 					return UniversalDateUtils.ranges.lastDays(iParamLastNext);
 				case "LASTWEEKS":
-					return UniversalDateUtils.ranges.lastWeeks(iParamLastNext);
+					return UniversalDateUtils.ranges.lastWeeks(iParamLastNext, sCalendarWeekNumbering);
 				case "LASTMONTHS":
 					return UniversalDateUtils.ranges.lastMonths(iParamLastNext);
 				case "LASTQUARTERS":
 					return UniversalDateUtils.ranges.lastQuarters(iParamLastNext);
 				case "LASTYEARS":
 					return UniversalDateUtils.ranges.lastYears(iParamLastNext);
+				case "NEXTMINUTES":
+					return UniversalDateUtils.ranges.nextMinutes(iParamLastNext);
+				case "NEXTHOURS":
+					return UniversalDateUtils.ranges.nextHours(iParamLastNext);
 				case "NEXTDAYS":
 					return UniversalDateUtils.ranges.nextDays(iParamLastNext);
 				case "NEXTWEEKS":
-					return UniversalDateUtils.ranges.nextWeeks(iParamLastNext);
+					return UniversalDateUtils.ranges.nextWeeks(iParamLastNext, sCalendarWeekNumbering);
 				case "NEXTMONTHS":
 					return UniversalDateUtils.ranges.nextMonths(iParamLastNext);
 				case "NEXTQUARTERS":
@@ -658,9 +807,21 @@ sap.ui.define([
 				case "NEXTYEARS":
 					return UniversalDateUtils.ranges.nextYears(iParamLastNext);
 				case "FROM":
-					return [oValue.values[0], oValue.values[0]];
+					return [UniversalDate.getInstance(oValue.values[0])];
 				case "TO":
-					return [oValue.values[0], oValue.values[0]];
+					return [UniversalDate.getInstance(oValue.values[0])];
+				case "FROMDATETIME":
+					var oDate = UniversalDate.getInstance(oValue.values[0]);
+
+					oDate.setMilliseconds(0);
+
+					return [oDate];
+				case "TODATETIME":
+					var oDate = UniversalDate.getInstance(oValue.values[0]);
+
+					oDate.setMilliseconds(999);
+
+					return [oDate];
 				case "YEARTODATE":
 					return UniversalDateUtils.ranges.yearToDate();
 				case "DATETOYEAR":

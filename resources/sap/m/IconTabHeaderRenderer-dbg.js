@@ -1,11 +1,17 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
-sap.ui.define(['./library'],
-		function (library) {
+sap.ui.define([
+	'./library',
+	'sap/ui/core/Core',
+	'sap/ui/core/InvisibleText'],
+		function (
+			library,
+			Core,
+			InvisibleText) {
 	"use strict";
 
 	/**
@@ -19,11 +25,21 @@ sap.ui.define(['./library'],
 	// shortcut for sap.m.TabsOverflowMode
 	var TabsOverflowMode = library.TabsOverflowMode;
 
+	IconTabHeaderRenderer.getInvisibleSplitTabDescriptionText = function() {
+		if (!this.oInvisibleSplitTabDescriptionText) {
+			this.oInvisibleSplitTabDescriptionText = new InvisibleText({
+				text: Core.getLibraryResourceBundle("sap.m").getText("ICONTABHEADER_SPLIT_TAB_DESCRIPTION")
+			}).toStatic();
+		}
+
+		return this.oInvisibleSplitTabDescriptionText;
+	};
+
 	/**
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
 	 * @param {sap.ui.core.RenderManager} oRM the RenderManager that can be used for writing to the render output buffer
-	 * @param {sap.ui.core.Control} oControl an object representation of the control that should be rendered
+	 * @param {sap.m.IconTabHeader} oControl an object representation of the control that should be rendered
 	 */
 	IconTabHeaderRenderer.render = function (oRM, oControl) {
 		if (!oControl.getVisible()) {
@@ -102,7 +118,13 @@ sap.ui.define(['./library'],
 
 		if (mAriaTexts.headerDescription) {
 			oRM.accessibilityState({
-				describedby: oControl._getInvisibleHeadText().getId()
+				describedby: {value: oControl._getInvisibleHeadText().getId(), append: true}
+			});
+		}
+
+		if (oControl._hasSubItems()) {
+			oRM.accessibilityState({
+				describedby: {value: IconTabHeaderRenderer.getInvisibleSplitTabDescriptionText().getId(), append: true}
 			});
 		}
 

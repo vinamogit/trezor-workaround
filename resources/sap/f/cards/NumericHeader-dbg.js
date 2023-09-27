@@ -1,22 +1,37 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
 	"./BaseHeader",
 	"./NumericIndicators",
+	"sap/base/Log",
+	"sap/m/library",
 	"sap/m/Text",
+	"sap/m/ObjectStatus",
 	"sap/f/cards/NumericHeaderRenderer",
-	"sap/ui/core/Core"
+	"sap/ui/core/library",
+	"sap/m/Avatar",
+	"sap/ui/core/InvisibleText"
 ], function (
 	BaseHeader,
 	NumericIndicators,
+	Log,
+	mLibrary,
 	Text,
+	ObjectStatus,
 	NumericHeaderRenderer,
-	Core
+	coreLibrary,
+	Avatar,
+	InvisibleText
 ) {
 	"use strict";
+
+	var ValueState = coreLibrary.ValueState;
+	var AvatarShape = mLibrary.AvatarShape;
+	var AvatarColor = mLibrary.AvatarColor;
+	var AvatarImageFitType = mLibrary.AvatarImageFitType;
 
 	/**
 	 * Constructor for a new <code>NumericHeader</code>.
@@ -41,13 +56,12 @@ sap.ui.define([
 	 * @extends sap.f.cards.BaseHeader
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.64
 	 * @alias sap.f.cards.NumericHeader
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var NumericHeader = BaseHeader.extend("sap.f.cards.NumericHeader", {
 		metadata: {
@@ -61,14 +75,71 @@ sap.ui.define([
 				title: { "type": "string", group: "Appearance" },
 
 				/**
+				 * Limits the number of lines for the title.
+				 * @experimental since 1.101
+				 */
+				titleMaxLines: { type: "int", defaultValue: 3 },
+
+				/**
 				 * The subtitle of the card
 				 */
 				subtitle: { "type": "string", group: "Appearance" },
 
 				/**
+				 * Limits the number of lines for the subtitle.
+				 * @experimental since 1.101
+				 */
+				subtitleMaxLines: { type: "int", defaultValue: 2 },
+
+				/**
 				 * Defines the status text.
 				 */
 				statusText: { type: "string", defaultValue: "" },
+
+				/**
+				 * Defines the shape of the icon.
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				iconDisplayShape: { type: "sap.m.AvatarShape", defaultValue: AvatarShape.Circle },
+
+				/**
+				 * Defines the icon source.
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				iconSrc: { type: "sap.ui.core.URI", defaultValue: "" },
+
+				/**
+				 * Defines the initials of the icon.
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				iconInitials: { type: "string", defaultValue: "" },
+
+				/**
+				 * Defines an alt text for the avatar or icon.
+				 *
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				iconAlt: { type: "string", defaultValue: "" },
+
+				/**
+				 * Defines a background color for the avatar or icon.
+				 *
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				iconBackgroundColor: { type: "sap.m.AvatarColor", defaultValue: AvatarColor.Transparent },
+
+				/**
+				 * Defines whether the card icon is visible.
+				 *
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				iconVisible: { type: "boolean", defaultValue: true },
 
 				/**
 				 * General unit of measurement for the header. Displayed as side information to the subtitle.
@@ -80,6 +151,12 @@ sap.ui.define([
 				 * If the value contains more than five characters, only the first five are displayed. Without rounding the number.
 				 */
 				number: { "type": "string", group : "Data" },
+
+				/**
+				 * Whether the main numeric indicator is visible or not
+				 * @since 1.109
+				 */
+				numberVisible: { "type": "boolean", defaultValue : true},
 
 				/**
 				 * Defines the unit of measurement (scaling prefix) for the main indicator.
@@ -104,6 +181,19 @@ sap.ui.define([
 				 * Additional text which adds more details to what is shown in the numeric header.
 				 */
 				details: { "type": "string", group: "Appearance" },
+
+				/**
+				 * The semantic color which represents the state of the details text.
+				 * @experimental Since 1.118. For usage only by Work Zone.
+				 * @since 1.118
+				 */
+				detailsState: { type : "sap.ui.core.ValueState", group: "Appearance", defaultValue: ValueState.None },
+
+				/**
+				 * Limits the number of lines for the details.
+				 * @experimental since 1.101
+				 */
+				detailsMaxLines: { type: "int", defaultValue: 1 },
 
 				/**
 				 * The alignment of the side indicators.
@@ -135,6 +225,11 @@ sap.ui.define([
 				_subtitle: { type: "sap.m.Text", multiple: false, visibility: "hidden" },
 
 				/**
+				* Defines the inner avatar control.
+				*/
+				_avatar: { type: "sap.m.Avatar", multiple: false, visibility: "hidden" },
+
+				/**
 				 * Shows unit of measurement next to subtitle
 				 */
 				_unitOfMeasurement: { type: "sap.m.Text", multiple: false, visibility: "hidden" },
@@ -142,7 +237,7 @@ sap.ui.define([
 				/**
 				 * Display details
 				 */
-				_details: { type: "sap.m.Text", multiple: false, visibility: "hidden" },
+				_details: { type: "sap.ui.core.Control", multiple: false, visibility: "hidden" },
 
 				/**
 				 * Displays the main and side indicators
@@ -167,125 +262,90 @@ sap.ui.define([
 	NumericHeader.prototype.init = function () {
 		BaseHeader.prototype.init.apply(this, arguments);
 
-		this._oRb = Core.getLibraryResourceBundle("sap.f");
-
 		this.data("sap-ui-fastnavgroup", "true", true); // Define group for F6 handling
+
+		this._oAriaAvatarText = new InvisibleText({id: this.getId() + "-ariaAvatarText"});
+		this._oAriaAvatarText.setText(this._oRb.getText("ARIA_HEADER_AVATAR_TEXT"));
 	};
 
 	NumericHeader.prototype.exit = function () {
 		BaseHeader.prototype.exit.apply(this, arguments);
 
-		this._oRb = null;
+		this._oAriaAvatarText.destroy();
+		this._oAriaAvatarText = null;
 	};
 
 	/**
-	 * Sets the title.
-	 *
-	 * @public
-	 * @param {string} sValue The text of the title
-	 * @return {this} <code>this</code> pointer for chaining
+	 * Called before the control is rendered.
+	 * @private
 	 */
-	NumericHeader.prototype.setTitle = function(sValue) {
-		this.setProperty("title", sValue, true);
-		this._getTitle().setText(sValue);
-		return this;
+	NumericHeader.prototype.onBeforeRendering = function () {
+		BaseHeader.prototype.onBeforeRendering.apply(this, arguments);
+
+		this._getTitle()
+			.setText(this.getTitle())
+			.setMaxLines(this.getTitleMaxLines());
+
+		this._getSubtitle()
+			.setText(this.getSubtitle())
+			.setMaxLines(this.getSubtitleMaxLines());
+
+		this._getUnitOfMeasurement().setText(this.getUnitOfMeasurement());
+
+		var oAvatar = this._getAvatar();
+
+		oAvatar.setDisplayShape(this.getIconDisplayShape());
+		oAvatar.setSrc(this.getIconSrc());
+		oAvatar.setInitials(this.getIconInitials());
+		oAvatar.setTooltip(this.getIconAlt());
+		oAvatar.setBackgroundColor(this.getIconBackgroundColor());
+
+		if (!this.isPropertyInitial("detailsState") && !this.isPropertyInitial("detailsMaxLines")) {
+			Log.error("Both details state and details max lines can not be used at the same time. Max lines setting will be ignored.");
+		}
+
+		if (!this.isPropertyInitial("detailsState")) {
+			this._createDetails(true)
+				.setText(this.getDetails())
+				.setState(this.getDetailsState());
+		} else {
+			this._createDetails()
+				.setText(this.getDetails())
+				.setMaxLines(this.getDetailsMaxLines());
+		}
+
+		this._getNumericIndicators()
+			.setNumber(this.getNumber())
+			.setScale(this.getScale())
+			.setTrend(this.getTrend())
+			.setState(this.getState())
+			.setSideIndicatorsAlignment(this.getSideIndicatorsAlignment())
+			.setNumberVisible(this.getNumberVisible());
 	};
 
 	/**
-	 * Sets the subtitle.
-	 *
-	 * @public
-	 * @param {string} sValue The text of the subtitle
-	 * @return {this} <code>this</code> pointer for chaining
+	 * @protected
+	 * @returns {boolean} If the icon should be shown.
 	 */
-	NumericHeader.prototype.setSubtitle = function(sValue) {
-		this.setProperty("subtitle", sValue, true);
-		this._getSubtitle().setText(sValue);
-		return this;
+	NumericHeader.prototype.shouldShowIcon = function () {
+		return this.getIconVisible();
 	};
 
 	/**
-	 * Sets the general unit of measurement for the header. Displayed as side information to the subtitle.
+	 * This method is a hook for the RenderManager that gets called
+	 * during the rendering of child Controls. It allows to add,
+	 * remove and update existing accessibility attributes (ARIA) of
+	 * those controls.
 	 *
-	 * @public
-	 * @param {string} sValue The value of the unit of measurement
-	 * @return {this} <code>this</code> pointer for chaining
+	 * @param {sap.ui.core.Control} oElement - The Control that gets rendered by the RenderManager
+	 * @param {{role: string, level: string}} mAriaProps - The mapping of "aria-" prefixed attributes
+	 * @protected
 	 */
-	NumericHeader.prototype.setUnitOfMeasurement = function(sValue) {
-		this.setProperty("unitOfMeasurement", sValue, true);
-		this._getUnitOfMeasurement().setText(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets additional text which adds more details to what is shown in the numeric header.
-	 *
-	 * @public
-	 * @param {string} sValue The text of the details
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericHeader.prototype.setDetails = function(sValue) {
-		this.setProperty("details", sValue, true);
-		this._getDetails().setText(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the value of the main number indicator.
-	 *
-	 * @public
-	 * @param {string} sValue A string representation of the number
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericHeader.prototype.setNumber = function(sValue) {
-		this.setProperty("number", sValue);
-		this._getNumericIndicators().setNumber(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the unit of measurement (scaling prefix) for the main indicator.
-	 *
-	 * @public
-	 * @param {string} sValue The text of the title
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericHeader.prototype.setScale = function(sValue) {
-		this.setProperty("scale", sValue, true);
-		this._getNumericIndicators().setScale(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the direction of the trend arrow.
-	 *
-	 * @public
-	 * @param {sap.m.DeviationIndicator} sValue The direction of the trend arrow
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericHeader.prototype.setTrend = function(sValue) {
-		this.setProperty("trend", sValue, true);
-		this._getNumericIndicators().setTrend(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the semantic color which represents the state of the main number indicator.
-	 *
-	 * @public
-	 * @param {sap.m.ValueColor} sValue The semantic color which represents the state
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericHeader.prototype.setState = function(sValue) {
-		this.setProperty("state", sValue, true);
-		this._getNumericIndicators().setState(sValue);
-		return this;
-	};
-
-	NumericHeader.prototype.setSideIndicatorsAlignment = function(sValue) {
-		this.setProperty("sideIndicatorsAlignment", sValue, true);
-		this._getNumericIndicators().setSideIndicatorsAlignment(sValue);
-		return this;
+	NumericHeader.prototype.enhanceAccessibilityState = function (oElement, mAriaProps) {
+		if (oElement === this.getAggregation("_title")) {
+			mAriaProps.role = this.getTitleAriaRole();
+			mAriaProps.level = this.getAriaHeadingLevel();
+		}
 	};
 
 	/**
@@ -301,7 +361,7 @@ sap.ui.define([
 			oControl = new Text({
 				id: this.getId() + "-title",
 				wrapping: true,
-				maxLines: 3
+				maxLines: this.getTitleMaxLines()
 			});
 			this.setAggregation("_title", oControl);
 		}
@@ -322,12 +382,28 @@ sap.ui.define([
 			oControl = new Text({
 				id: this.getId() + "-subtitle",
 				wrapping: true,
-				maxLines: 2
+				maxLines: this.getSubtitleMaxLines()
 			});
 			this.setAggregation("_subtitle", oControl);
 		}
 
 		return oControl;
+	};
+
+	/**
+	 * Lazily creates an avatar control and returns it.
+	 * @private
+	 * @returns {sap.m.Avatar} The inner avatar aggregation
+	 */
+	NumericHeader.prototype._getAvatar = function () {
+		var oAvatar = this.getAggregation("_avatar");
+		if (!oAvatar) {
+			oAvatar = new Avatar({
+				imageFitType: AvatarImageFitType.Contain
+			}).addStyleClass("sapFCardIcon");
+			this.setAggregation("_avatar", oAvatar);
+		}
+		return oAvatar;
 	};
 
 	/**
@@ -351,23 +427,51 @@ sap.ui.define([
 	};
 
 	/**
-	 * Lazily create details and return it.
-	 *
+	 * Create details and return it.
 	 * @private
-	 * @return {sap.m.Text} The details aggregation
+	 * @param {boolean} bUseObjectStatus If set to true the details will be sap.m.ObjectStatus
+	 * @return {sap.m.Text|sap.m.ObjectStatus} The details aggregation
 	 */
-	NumericHeader.prototype._getDetails = function () {
+	NumericHeader.prototype._createDetails = function (bUseObjectStatus) {
 		var oControl = this.getAggregation("_details");
 
-		if (!oControl) {
-			oControl = new Text({
-				id: this.getId() + "-details",
-				wrapping: false
-			});
-			this.setAggregation("_details", oControl);
+		if (oControl?.isA("sap.m.Text") && bUseObjectStatus) {
+			oControl.destroy();
+		} else if (oControl) {
+			return oControl;
 		}
 
+		var oSettings = {
+			id: this._getDetailsId()
+		};
+
+		if (bUseObjectStatus) {
+			oControl = new ObjectStatus(oSettings);
+		} else {
+			oControl = new Text(oSettings);
+		}
+
+		this.setAggregation("_details", oControl);
+
 		return oControl;
+	};
+
+	/**
+	 * Gets the control create for showing details.
+	 * @private
+	 * @return {sap.m.Text|sap.m.ObjectStatus} The details aggregation
+	 */
+	NumericHeader.prototype._getDetails = function () {
+		return this.getAggregation("_details");
+	};
+
+	/**
+	 * Gets the id for details control.
+	 * @private
+	 * @return {string} The id for details control.
+	 */
+	NumericHeader.prototype._getDetailsId = function () {
+		return this.getId() + "-details";
 	};
 
 	/**
@@ -388,25 +492,6 @@ sap.ui.define([
 	};
 
 	/**
-	 * Fires the <code>sap.f.cards.NumericHeader</code> press event.
-	 */
-	NumericHeader.prototype.ontap = function (oEvent) {
-		var srcControl = oEvent.srcControl;
-		if (srcControl && srcControl.getId().indexOf("overflowButton") > -1) { // better way?
-			return;
-		}
-
-		this.firePress();
-	};
-
-	/**
-	 * Fires the <code>sap.f.cards.NumericHeader</code> press event.
-	 */
-	NumericHeader.prototype.onsapselect = function () {
-		this.firePress();
-	};
-
-	/**
 	 * Helper function used to create aria-labelledby attribute.
 	 *
 	 * @private
@@ -418,6 +503,7 @@ sap.ui.define([
 			sSubtitleId = "",
 			sStatusTextId = "",
 			sUnitOfMeasureId = this._getUnitOfMeasurement().getId(),
+			sAvatarId = "",
 			sMainIndicatorId = "",
 			sSideIndicatorsIds = this._getSideIndicatorIds(),
 			sDetailsId = "",
@@ -439,15 +525,19 @@ sap.ui.define([
 			sStatusTextId = this.getId() + "-status";
 		}
 
+		if (this.getIconSrc() || this.getIconInitials()) {
+			sAvatarId = this.getId() + "-ariaAvatarText";
+		}
+
 		if (this.getDetails()) {
-			sDetailsId = this._getDetails().getId();
+			sDetailsId = this._getDetailsId();
 		}
 
 		if (this.getNumber() || this.getScale()) {
 			sMainIndicatorId = this._getNumericIndicators()._getMainIndicator().getId();
 		}
 
-		sIds = sCardTypeId + " " + sTitleId + " " + sSubtitleId + " " + sStatusTextId + " " + sUnitOfMeasureId + " " + sMainIndicatorId + " " + sSideIndicatorsIds + " " + sDetailsId;
+		sIds = sCardTypeId + " " + sTitleId + " " + sSubtitleId + " " + sStatusTextId + " " + sUnitOfMeasureId + " " + sAvatarId + " " + sMainIndicatorId + " " + sSideIndicatorsIds + " " + sDetailsId;
 
 		// remove whitespace from both sides
 		// and merge the consecutive spaces into one
@@ -490,25 +580,6 @@ sap.ui.define([
 		this.invalidate();
 
 		return this;
-	};
-
-	/**
-	 * Returns if the control is inside a sap.f.GridContainer
-	 *
-	 * @private
-	 */
-	NumericHeader.prototype._isInsideGridContainer = function() {
-		var oParent = this.getParent();
-		if (!oParent) {
-			return false;
-		}
-
-		oParent = oParent.getParent();
-		if (!oParent) {
-			return false;
-		}
-
-		return oParent.isA("sap.f.GridContainer");
 	};
 
 	return NumericHeader;

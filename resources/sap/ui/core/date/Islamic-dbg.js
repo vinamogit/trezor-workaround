@@ -1,12 +1,12 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides class sap.ui.core.date.Islamic
-sap.ui.define(['./UniversalDate', '../CalendarType', 'sap/base/Log', './_Calendars'],
-	function(UniversalDate, CalendarType, Log, _Calendars) {
+sap.ui.define(['./UniversalDate', '../CalendarType', 'sap/base/Log', './_Calendars', 'sap/ui/core/Configuration'],
+	function(UniversalDate, CalendarType, Log, _Calendars, Configuration) {
 	"use strict";
 
 
@@ -212,9 +212,9 @@ sap.ui.define(['./UniversalDate', '../CalendarType', 'sap/base/Log', './_Calenda
 
 		oCustomizationMap = {};
 
-		sDateFormat = sap.ui.getCore().getConfiguration().getFormatSettings().getLegacyDateFormat();
+		sDateFormat = Configuration.getFormatSettings().getLegacyDateFormat();
 		sDateFormat = _isSupportedIslamicCalendarType(sDateFormat) ? sDateFormat : "A"; // set "A" as a fall-back format always
-		oCustomizationJSON = sap.ui.getCore().getConfiguration().getFormatSettings().getLegacyDateCalendarCustomizing();
+		oCustomizationJSON = Configuration.getFormatSettings().getLegacyDateCalendarCustomizing();
 		oCustomizationJSON = oCustomizationJSON || [];
 
 
@@ -226,6 +226,7 @@ sap.ui.define(['./UniversalDate', '../CalendarType', 'sap/base/Log', './_Calenda
 		oCustomizationJSON.forEach(function (oEntry) {
 			if (oEntry.dateFormat === sDateFormat) {
 				var date = parseDate(oEntry.gregDate);
+				// no need to use UI5Date.getInstance as only the UTC timestamp is used
 				var iGregorianDate = new Date(Date.UTC(date.year, date.month - 1, date.day));
 				var iMillis = iGregorianDate.getTime();
 				var iIslamicMonthStartDays = (iMillis - ISLAMIC_MILLIS) / ONE_DAY;

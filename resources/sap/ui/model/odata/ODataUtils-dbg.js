@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*eslint-disable max-len */
@@ -29,6 +29,8 @@ sap.ui.define([
 		oDateTimeFormatMs,
 		oDateTimeOffsetFormat,
 		rDecimal = /^([-+]?)0*(\d+)(\.\d+|)$/,
+		// URL might be encoded, "(" becomes %28
+		rSegmentAfterCatalogService = /\/(Annotations|ServiceNames|ServiceCollection)(\(|%28)/,
 		oTimeFormat,
 		rTrailingDecimal = /\.$/,
 		rTrailingZeroes = /0+$/;
@@ -263,7 +265,7 @@ sap.ui.define([
 	 * @param {string} vParameters.alias the system alias which will be used as the origin
 	 * @param {string} vParameters.system the system id which will be used as the origin
 	 * @param {string} vParameters.client the system's client
-	 * @param {string} vParameters.force setting this flag to 'true' overrides the already existing origin
+	 * @param {boolean} vParameters.force setting this flag to <code>true</code> overrides the already existing origin
 	 *
 	 * @public
 	 * @since 1.30.7
@@ -354,21 +356,17 @@ sap.ui.define([
 	ODataUtils.setAnnotationOrigin = function(sAnnotationURL, vParameters){
 
 		var sFinalAnnotationURL;
-		var iAnnotationIndex = sAnnotationURL.indexOf("/Annotations(");
+		var iSegmentAfterCatalogServiceIndex = sAnnotationURL.search(rSegmentAfterCatalogService);
 		var iHanaXsSegmentIndex = vParameters && vParameters.preOriginBaseUri ? vParameters.preOriginBaseUri.indexOf(".xsodata") : -1;
 
-		if (iAnnotationIndex === -1){ // URL might be encoded, "(" becomes %28
-			iAnnotationIndex = sAnnotationURL.indexOf("/Annotations%28");
-		}
-
-		if (iAnnotationIndex >= 0) { // annotation path is there
-			if (sAnnotationURL.indexOf("/$value", iAnnotationIndex) === -1) { // $value missing
+		if (iSegmentAfterCatalogServiceIndex >= 0) {
+			if (sAnnotationURL.indexOf("/$value", iSegmentAfterCatalogServiceIndex) === -1) { // $value missing
 				Log.warning("ODataUtils.setAnnotationOrigin: Annotation url is missing $value segment.");
 				sFinalAnnotationURL = sAnnotationURL;
 			} else {
 				// if the annotation URL is an SAP specific annotation url, we add the origin path segment...
-				var sAnnotationUrlBase =  sAnnotationURL.substring(0, iAnnotationIndex);
-				var sAnnotationUrlRest =  sAnnotationURL.substring(iAnnotationIndex, sAnnotationURL.length);
+				var sAnnotationUrlBase =  sAnnotationURL.substring(0, iSegmentAfterCatalogServiceIndex);
+				var sAnnotationUrlRest =  sAnnotationURL.substring(iSegmentAfterCatalogServiceIndex, sAnnotationURL.length);
 				var sAnnotationWithOrigin = ODataUtils.setOrigin(sAnnotationUrlBase, vParameters);
 				sFinalAnnotationURL = sAnnotationWithOrigin + sAnnotationUrlRest;
 			}
@@ -535,12 +533,14 @@ sap.ui.define([
 				break;
 			case "Edm.Time":
 				if (typeof vValue === "object") {
+					// no need to use UI5Date.getInstance as only the UTC timestamp is used
 					sValue = oTimeFormat.format(new Date(vValue.ms), true);
 				} else {
 					sValue = "time'" + vValue + "'";
 				}
 				break;
 			case "Edm.DateTime":
+				// no need to use UI5Date.getInstance as only the UTC timestamp is used
 				oDate = vValue instanceof Date ? vValue : new Date(vValue);
 				if (oDate.getMilliseconds() > 0) {
 					sValue = oDateTimeFormatMs.format(oDate, true);
@@ -549,6 +549,7 @@ sap.ui.define([
 				}
 				break;
 			case "Edm.DateTimeOffset":
+				// no need to use UI5Date.getInstance as only the UTC timestamp is used
 				oDate = vValue instanceof Date ? vValue : new Date(vValue);
 				sValue = oDateTimeOffsetFormat.format(oDate, true);
 				break;
@@ -744,7 +745,7 @@ sap.ui.define([
 	 *   the first value to compare
 	 * @param {any} vValue2
 	 *   the second value to compare
-	 * @param {string} [bAsDecimal=false]
+	 * @param {boolean} [bAsDecimal=false]
 	 *   if <code>true</code>, the string values <code>vValue1</code> and <code>vValue2</code> are
 	 *   compared as a decimal number (only sign, integer and fraction digits; no exponential
 	 *   format). Otherwise they are recognized by looking at their types.

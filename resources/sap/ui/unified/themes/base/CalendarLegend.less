@@ -68,6 +68,7 @@
 	background: lighten(@sapUiContentForegroundColor, 5);
 	border: 1px solid @sapUiContentForegroundBorderColor;
 	box-sizing: border-box;
+	border-radius: 0.125rem;
 }
 
 .sapUiUnifiedLegendSquareSelected {
@@ -76,6 +77,25 @@
 	background: @sapUiListBackground;
 	border: 2px solid @sapUiCalendarColorToday;
 
+}
+
+.sapUiUnifiedLegendItem {
+	position: relative;
+
+	&:focus {
+		outline: none;
+		&::after {
+			content: "";
+			position: absolute;
+			box-sizing: border-box;
+			left: 0;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			border: 0.0625rem dotted @sapUiContentFocusColor;
+			pointer-events: none;
+		}
+	}
 }
 
 /*** compact mode (desktop size) ***/

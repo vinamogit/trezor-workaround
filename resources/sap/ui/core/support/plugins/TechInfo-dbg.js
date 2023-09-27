@@ -1,29 +1,42 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides class sap.ui.core.support.plugins.TechInfo (TechInfo support plugin)
 sap.ui.define([
-	'sap/base/Log',
-	'sap/base/util/isEmptyObject',
-	'sap/base/util/isPlainObject',
-	'../Plugin',
-	'../Support',
-	'../ToolsAPI',
-	'sap/base/security/encodeXML'
+	"../Plugin",
+	"../Support",
+	"../ToolsAPI",
+	"sap/ui/thirdparty/jquery",
+	"sap/base/Log",
+	"sap/base/util/each",
+	"sap/base/util/isEmptyObject",
+	"sap/base/util/isPlainObject",
+	"sap/base/security/encodeXML",
+	"sap/ui/VersionInfo"
 ],
-	function(Log, isEmptyObject, isPlainObject, Plugin, Support, ToolsAPI, encodeXML) {
+	function(
+		Plugin,
+		Support,
+		ToolsAPI,
+		jQuery,
+		Log,
+		each,
+		isEmptyObject,
+		isPlainObject,
+		encodeXML,
+		VersionInfo
+	) {
 	"use strict";
-
 
 		/**
 		 * Creates an instance of sap.ui.core.support.plugins.TechInfo.
 		 * @class This class represents the technical info plugin for the support tool functionality of UI5. This class is internal and all its functions must not be used by an application.
 		 *
 		 * @extends sap.ui.core.support.Plugin
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 * @private
 		 * @alias sap.ui.core.support.plugins.TechInfo
 		 */
@@ -34,11 +47,9 @@ sap.ui.define([
 					this.getId() + "Data",
 					this.getId() + "FinishedE2ETrace"
 				] : [
-					this.getId() + "ToggleDebug",
 					this.getId() + "SetReboot",
 					this.getId() + "Refresh",
-					this.getId() + "StartE2ETrace",
-					this.getId() + "ToggleStatistics"
+					this.getId() + "StartE2ETrace"
 				];
 
 				if (this.runsAsToolPlugin()) {
@@ -56,8 +67,31 @@ sap.ui.define([
 		 * @private
 		 */
 		TechInfo.prototype.onsapUiSupportTechInfoData = function(oEvent){
+			// read and remember event parameters synchronously
+			var oReceivedData = oEvent.getParameter("data");
+
+			// retrieve and prepare version information
+			VersionInfo.load().then(function(oVersionInfo) {
+				return {
+					productName: oVersionInfo.name,
+					versionInfoEncoded:
+						"<a href='" + sap.ui.require.toUrl("sap-ui-version.json") + "'"
+						+ " target='_blank' class='sapUiSupportLink' title='Open Version Info'>"
+						+ encode(oVersionInfo.version) + "</a>"
+						+ formatBuildInfo(oVersionInfo.buildTimestamp, oVersionInfo.scmRevision)
+				};
+			}, function() {
+				return {
+					productName: "SAPUI5",
+					versionInfoEncoded: "not available"
+				};
+			}).then(function(oVersionInfo) {
+				this._createTechInfoUI(oReceivedData, oVersionInfo);
+			}.bind(this));
+		};
+
+		TechInfo.prototype._createTechInfoUI = function(oData, oVersionInfo) {
 			var that = this;
-			var oData = oEvent.getParameter("data");
 			oData.modules.sort();
 			this.e2eTraceStarted = oData["e2e-trace"].isStarted;
 			var html = ["<div class='sapUiSupportToolbar'>",
@@ -65,36 +99,10 @@ sap.ui.define([
 						"<div><div class='sapUiSupportTechInfoCntnt'>",
 						"<table border='0' cellpadding='3' class='infoTable'>"];
 
-			// version information
-			function formatBuildInfo(timestamp, scmRevision) {
-				var info = [];
-				if ( timestamp ) {
-					var match = /^(\d{4})(\d{2})(\d{2})-?(\d{2})(\d{2})$/.exec(timestamp);
-					if ( match ) {
-						timestamp = match[1] + '-' + match[2] + '-' + match[3] + 'T' + match[4] + ":" + match[5];
-					}
-					info.push("built at " + encode(timestamp));
-				}
-				if ( scmRevision ) {
-					info.push("last change " + encode(scmRevision));
-				}
-				return info.length === 0 ? "" : " (" + info.join(", ") + ")";
-			}
-			var sProductName = "SAPUI5";
-			var sVersionInfoEncoded = "not available";
-			try {
-				var oVersionInfo = sap.ui.getVersionInfo();
-				sProductName = oVersionInfo.name;
-				sVersionInfoEncoded =
-					"<a href='" + sap.ui.resource("", "sap-ui-version.json") + "' target='_blank' class='sapUiSupportLink' title='Open Version Info'>" + encode(oVersionInfo.version) + "</a>" +
-					formatBuildInfo(oVersionInfo.buildTimestamp, oVersionInfo.scmRevision);
-			} catch (ex) {
-				// ignore
-			}
-			line(html, true, true, sProductName, function(buffer) {
-				buffer.push(sVersionInfoEncoded);
+			line(html, true, true, oVersionInfo.productName, function(buffer) {
+				buffer.push(oVersionInfo.versionInfoEncoded);
 			});
-			if ( !/openui5/i.test(sProductName) ) {
+			if ( !/openui5/i.test(oVersionInfo.productName) ) {
 				line(html, true, true, "OpenUI5 Version", function(buffer){
 					buffer.push( encode(oData.version) + formatBuildInfo(oData.build, oData.change) );
 				});
@@ -116,7 +124,7 @@ sap.ui.define([
 			}
 			multiline(html, true, true, "Loaded Libraries", oData.loadedLibraries);
 			line(html, true, true, "Loaded Modules", function(buffer){
-				jQuery.each(oData.modules, function(i,v){
+				each(oData.modules, function(i,v){
 					if (v.indexOf("sap.ui.core.support") < 0) {
 						buffer.push("<span>", encode(v), "</span>");
 						if (i < oData.modules.length - 1) {
@@ -148,8 +156,13 @@ sap.ui.define([
 
 			this.$("tggleDbgSrc").on("click", function(oEvent) {
 				oEvent.preventDefault();
-				Support.getStub().sendEvent(that.getId() + "ToggleDebug", {});
-			});
+				this.confirmReload(function () {
+					this._oStub.sendEvent(this._oStub.getMetadata().getClass().EventType.RELOAD_WITH_PARAMETER, {
+						parameterName: "sap-ui-debug",
+						parameterValue: !oData.debug
+					});
+				}.bind(this));
+			}.bind(this));
 			this.$("Refresh").on("click", function(oEvent) {
 				oEvent.preventDefault();
 				Support.getStub().sendEvent(that.getId() + "Refresh", {});
@@ -175,18 +188,6 @@ sap.ui.define([
 			document.title = "UI5 Diagnostics - " + oData.title;
 		};
 
-
-		/**
-		 * Handler for sapUiSupportTechInfoToggleDebug event
-		 *
-		 * @param {sap.ui.base.Event} oEvent the event
-		 * @private
-		 */
-		TechInfo.prototype.onsapUiSupportTechInfoToggleDebug = function(oEvent){
-			jQuery.sap.debug(!jQuery.sap.debug());
-			sendData(this);
-		};
-
 		/**
 		 * Handler for sapUiSupportTechInfoSetReboot event, which sets the URL from which UI5 should be loaded on next restart of the application
 		 *
@@ -194,7 +195,7 @@ sap.ui.define([
 		 * @private
 		 */
 		TechInfo.prototype.onsapUiSupportTechInfoSetReboot = function(oEvent) {
-			jQuery.sap.setReboot(oEvent.getParameter("rebootUrl"));
+			window.localStorage.setItem("sap-ui-reboot-URL", oEvent.getParameter("rebootUrl"));
 		};
 
 		/**
@@ -239,17 +240,6 @@ sap.ui.define([
 		 * @private
 		 */
 		TechInfo.prototype.onsapUiSupportTechInfoRefresh = function(oEvent){
-			sendData(this);
-		};
-
-		/**
-		 * Handler for sapUiSupportTechInfoToggleStatistics event
-		 *
-		 * @param {sap.ui.base.Event} oEvent the event
-		 * @private
-		 */
-		TechInfo.prototype.onsapUiSupportTechInfoToggleStatistics = function(oEvent){
-			jQuery.sap.statistics(!jQuery.sap.statistics());
 			sendData(this);
 		};
 
@@ -326,6 +316,21 @@ sap.ui.define([
 				});
 				buffer.push("</table>");
 			});
+		}
+
+		function formatBuildInfo(timestamp, scmRevision) {
+			var info = [];
+			if ( timestamp ) {
+				var match = /^(\d{4})(\d{2})(\d{2})-?(\d{2})(\d{2})$/.exec(timestamp);
+				if ( match ) {
+					timestamp = match[1] + '-' + match[2] + '-' + match[3] + 'T' + match[4] + ":" + match[5];
+				}
+				info.push("built at " + encode(timestamp));
+			}
+			if ( scmRevision ) {
+				info.push("last change " + encode(scmRevision));
+			}
+			return info.length === 0 ? "" : " (" + info.join(", ") + ")";
 		}
 
 	return TechInfo;

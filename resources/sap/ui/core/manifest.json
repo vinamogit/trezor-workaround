@@ -5,7 +5,7 @@
     "type": "library",
     "embeds": [],
     "applicationVersion": {
-      "version": "1.98.0"
+      "version": "1.118.0"
     },
     "title": "The SAPUI5 Core Runtime.",
     "description": "The SAPUI5 Core Runtime.\n\n  Contains the UI5 jQuery plugins (jQuery.sap.*), the Core and all its components,\n  base classes for Controls, Components and the Model View Controller classes.",
@@ -49,6 +49,11 @@
         "version": "2.3.2"
       },
       {
+        "name": "qunit-2.18",
+        "packagedWithMySelf": true,
+        "version": "2.18.0"
+      },
+      {
         "name": "jquery-migrate",
         "packagedWithMySelf": true,
         "version": "3.3.1"
@@ -89,11 +94,6 @@
         "version": "1.0"
       },
       {
-        "name": "mobify",
-        "packagedWithMySelf": true,
-        "version": "1.1"
-      },
-      {
         "name": "zynga",
         "packagedWithMySelf": true,
         "version": "1.2.1-0-g5d43806"
@@ -126,7 +126,7 @@
       {
         "name": "cldr",
         "packagedWithMySelf": true,
-        "version": "35.1"
+        "version": "41"
       },
       {
         "name": "mobiscroll",
@@ -144,6 +144,11 @@
         "version": "4.4.6"
       },
       {
+        "name": "sinonjs14",
+        "packagedWithMySelf": true,
+        "version": "14.0.0"
+      },
+      {
         "name": "sinon-qunit",
         "packagedWithMySelf": true,
         "version": "2.0.0"
@@ -151,7 +156,7 @@
       {
         "name": "urijs",
         "packagedWithMySelf": true,
-        "version": "1.19.7"
+        "version": "1.19.11"
       },
       {
         "name": "punycodejs",
@@ -242,6 +247,11 @@
         "name": "node-lru-cache",
         "packagedWithMySelf": true,
         "version": "2.7.3"
+      },
+      {
+        "name": "tzdata",
+        "packagedWithMySelf": true,
+        "version": "2022a"
       }
     ]
   },
@@ -254,7 +264,7 @@
   },
   "sap.ui5": {
     "dependencies": {
-      "minUI5Version": "1.98",
+      "minUI5Version": "1.118",
       "libs": {}
     },
     "library": {

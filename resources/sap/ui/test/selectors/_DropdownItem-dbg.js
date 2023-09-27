@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -23,6 +23,7 @@ sap.ui.define([
         /**
          * Generates control selector for sap.m.Select and sap.m.ComboBox items
          * @param {object} oControl the control for which to generate a selector
+         * @param {object} mSelectorParts Options object
          * @param {object} mSelectorParts.ancestor the control selector for the parent dropdown
          * @returns {object} a plain object representation of a control. Contains the dropdown ancestor selector, item controlType and item key
          * Undefined, if the control is not a dropdown

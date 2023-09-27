@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*eslint-disable max-len */
@@ -29,7 +29,7 @@ sap.ui.define([
 	 *
 	 * @param {sap.ui.model.Model} oModel The model
 	 * @param {string} sPath The path
-	 * @param {sap.ui.model.Context} oContext The context object
+	 * @param {sap.ui.model.Context} [oContext] The context object
 	 * @param {object} [mParameters] Additional, implementation-specific parameters
 	 * @abstract
 	 * @public
@@ -38,20 +38,32 @@ sap.ui.define([
 	 */
 	var Binding = EventProvider.extend("sap.ui.model.Binding", /** @lends sap.ui.model.Binding.prototype */ {
 
-		constructor : function(oModel, sPath, oContext, mParameters){
+		constructor : function (oModel, sPath, oContext, mParameters) {
 			EventProvider.apply(this);
 
+			// the binding's model
 			this.oModel = oModel;
+			// whether the binding is relative
 			this.bRelative = !sPath.startsWith('/');
+			// the binding's path
 			this.sPath = sPath;
+			// the binding's context
 			this.oContext = oContext;
-			this.vMessages = undefined;
+			// the binding's parameters
 			this.mParameters = mParameters;
+			// whether the binding is initial
 			this.bInitial = false;
+			// whether the binding is suspended
 			this.bSuspended = false;
+			// the binding's data state
 			this.oDataState = null;
 			// whether this binding does not propagate model messages to the control
 			this.bIgnoreMessages = undefined;
+			// whether this binding is currently being destroyed, cf. #destroy
+			this.bIsBeingDestroyed = undefined;
+			// whether this binding has *asynchronously* triggered a data state change event which is not yet
+			// fired, cf. #_checkDataState
+			this.bFiredAsync = undefined;
 		},
 
 		metadata : {
@@ -173,7 +185,7 @@ sap.ui.define([
 	 * Might be a relative or absolute path. If it is relative, it will be resolved relative
 	 * to the context as returned by {@link #getContext}.
 	 *
-	 * @returns {string} Binding path
+	 * @returns {null|string} Binding path
 	 * @public
 	 */
 	Binding.prototype.getPath = function() {
@@ -185,7 +197,7 @@ sap.ui.define([
 	 *
 	 * If the binding path is absolute, the context is not relevant.
 	 *
-	 * @returns {sap.ui.model.Context} Context object
+	 * @returns {null|undefined|sap.ui.model.Context} Context object
 	 * @public
 	 */
 	Binding.prototype.getContext = function() {
@@ -208,8 +220,11 @@ sap.ui.define([
 		var mChangeParameters;
 
 		if (this.oContext != oContext) {
-			sap.ui.getCore().getMessageManager()
-				.removeMessages(this.getDataState().getControlMessages(), true);
+			var Messaging = sap.ui.require("sap/ui/core/Messaging");
+			if (Messaging) {
+				Messaging
+					.removeMessages(this.getDataState().getControlMessages(), true);
+			}
 			this.oContext = oContext;
 			this.getDataState().reset();
 			this.checkDataState();
@@ -222,16 +237,8 @@ sap.ui.define([
 	};
 
 	/**
-	 * Getter for current active messages.
-	 * @return {Object} The context object
-	 */
-	Binding.prototype.getMessages = function() {
-		return this.vMessages;
-	};
-
-	/**
 	 * Returns the data state for this binding.
-	 * @return {sap.ui.model.DataState} The data state
+	 * @returns {sap.ui.model.DataState} The data state
 	 */
 	Binding.prototype.getDataState = function() {
 		if (!this.oDataState) {
@@ -243,7 +250,7 @@ sap.ui.define([
 	/**
 	 * Returns the model to which this binding belongs.
 	 *
-	 * @returns {sap.ui.model.Model} Model to which this binding belongs
+	 * @returns {null|sap.ui.model.Model} Model to which this binding belongs
 	 * @public
 	 */
 	Binding.prototype.getModel = function() {
@@ -547,7 +554,8 @@ sap.ui.define([
 	 * of the binding is fired. The default implementation just fires the change event when the
 	 * method is called. Subclasses should implement this, if possible.
 	 *
-	 * @param {boolean} bForceUpdate Whether the event should be fired when the binding is suspended
+	 * @param {boolean} [bForceUpdate] Whether the event should be fired when the binding is
+	 *   suspended
 	 *
 	 * @private
 	 */
@@ -564,7 +572,7 @@ sap.ui.define([
 	 * To update a control, even if no data has been changed, e.g. to reset a control after failed
 	 * validation, please use the parameter <code>bForceUpdate</code>.
 	 *
-	 * @param {boolean} bForceUpdate Update the bound control even if no data has been changed
+	 * @param {boolean} [bForceUpdate] Update the bound control even if no data has been changed
 	 *
 	 * @public
 	 */
@@ -591,7 +599,7 @@ sap.ui.define([
 	/**
 	 * _refresh for compatibility
 	 *
-	 * @param {boolean} bForceUpdate Whether an update should be forced
+	 * @param {boolean} [bForceUpdate] Whether an update should be forced
 	 * @private
 	 */
 	Binding.prototype._refresh = function(bForceUpdate) {
@@ -775,8 +783,11 @@ sap.ui.define([
 		this.bIsBeingDestroyed = true;
 
 		if (oDataState) {
-			sap.ui.getCore().getMessageManager()
-				.removeMessages(oDataState.getControlMessages(), true);
+			var Messaging = sap.ui.require("sap/ui/core/Messaging");
+			if (Messaging) {
+				Messaging
+					.removeMessages(oDataState.getControlMessages(), true);
+			}
 			oDataState.setModelMessages();
 			if (oDataState.changed()) {
 				// notify controls synchronously that data state changed

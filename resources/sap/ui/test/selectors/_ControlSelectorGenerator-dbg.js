@@ -1,16 +1,17 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /* eslint-disable no-loop-func */
  sap.ui.define([
+    "sap/base/util/extend",
+    "sap/base/util/isEmptyObject",
     'sap/ui/base/ManagedObject',
     "sap/ui/test/_OpaLogger",
-    'sap/ui/thirdparty/jquery',
     "sap/ui/test/selectors/_ControlSelectorValidator",
     'sap/ui/test/selectors/_selectors'
-], function (ManagedObject, _OpaLogger, $, _ControlSelectorValidator, selectors) {
+], function (extend, isEmptyObject, ManagedObject, _OpaLogger, _ControlSelectorValidator, selectors) {
     "use strict";
 
     /**
@@ -33,7 +34,7 @@
       * @param {boolean} oOptions.shallow whether to do a shallow or deep search of the control tree to find a selector. Default value is false, enabling search through the tree.
       * @param {boolean} oOptions.multiple whether to return non-unique selectors as well. Default value is false, meaning that only unique selectors are returned.
       * @param {boolean} oOptions.includeAll whether to return all selectors, matching a unique control, or just the top one. Default value is false, meaning that at most one selector is returned.
-      * @param {object} oOptions.settings preferences for the selector e.g. which is the most prefered strategy
+      * @param {object} oOptions.settings preferences for the selector e.g. which is the most preferred strategy
       * @param {boolean} oOptions.settings.preferViewId true if selectors with view ID should have higher priority than selectors with global ID. Default value is false.
       * @returns {Promise<object|Array|Error>} a plain object representation of a control or Error if none can be generated
       * If multiple selectors are requested, an array is returned.
@@ -61,7 +62,7 @@
             });
     };
 
-    // hieararchical search parameters. modify only when debugging
+    // hierarchical search parameters. modify only when debugging
     var DEFAULT_MAX_DEPTH = 20;
     var DEAULT_MAX_WIDTH = 10;
 
@@ -93,7 +94,7 @@
                 return _ControlSelectorGenerator._executeGenerator(oGenerator, oOptions);
             })).then(function (aSelectors) {
                 aSelectors = aSelectors.filter(function (vSelector) {
-                    return vSelector && !$.isEmptyObject(vSelector) && (!Array.isArray(vSelector) || vSelector.length);
+                    return vSelector && !isEmptyObject(vSelector) && (!Array.isArray(vSelector) || vSelector.length);
                 });
                 if (aSelectors.length) {
                     _oLogger.debug("The matching " + (oOptions.multiple ? "non-unique" : "unique") + " selectors are: " + JSON.stringify(aSelectors));
@@ -227,7 +228,7 @@
             .then(function (mUniqueAncestor) {
                 return _ControlSelectorGenerator._generateUniqueSelectorInSubtree(oOptions.control, mUniqueAncestor.ancestor)
                     .then(function (mRelativeSelector) {
-                        return $.extend({}, mRelativeSelector, {
+                        return extend({}, mRelativeSelector, {
                             ancestor: mUniqueAncestor.selector
                         });
                     }).then(_ControlSelectorGenerator._filterUniqueHierarchical(oOptions));
@@ -237,9 +238,10 @@
     /**
      * (slow) Use when no selector can be generated for the control by the plain generators.
      * Search down the tree for a descendant with unique selector, then get a selector relative to it:
-     * 1. Find a selector that desribes the control within the app (doesn't have to be unique).
+     * 1. Find a selector that describes the control within the app (doesn't have to be unique).
      * 2. Then, find the closest of its descendants, which has a selector that uniquely describes it within the app.
-     * @param {object} oControl the control to use as a starting point for the search
+     * @param {object} oOptions options to configure selector generation
+     * @param {object} oOptions.oControl the control to use as a starting point for the search
      * @returns {object} a selector
      * @private
      */
@@ -251,7 +253,7 @@
         }).then(function (mMultiSelector) {
             return _ControlSelectorGenerator._generateUniqueDescendantSelector(oOptions.control)
                 .then(function (mUniqueDescendantSelector) {
-                    return $.extend({}, mMultiSelector, {
+                    return extend({}, mMultiSelector, {
                         descendant: mUniqueDescendantSelector
                     });
                 }).then(_ControlSelectorGenerator._filterUniqueHierarchical(oOptions));
@@ -261,7 +263,7 @@
     /**
      * (slow) Use when no selector can be generated for the control by the plain generators.
      * Search up and down the tree for a control with a unique selector, then get a selector relative to it:
-     * 1. Find a selector that desribes the control within the app (doesn't have to be unique).
+     * 1. Find a selector that describes the control within the app (doesn't have to be unique).
      * 2. Then, find the closest of its siblings, which has a selector that uniquely describes it within the app.
      * a sibling is a control that has the same ancestor
      * This resembles a descendant search, done for every ancestor (up to a certain level)
@@ -277,7 +279,7 @@
             shallow: true,
             multiple: true
         }).then(function (mTargetMultiSelector) {
-            // find a selector that incudes a relative or sibling, that has a unique selector
+            // find a selector that includes a relative or sibling, that has a unique selector
             return _ControlSelectorGenerator._generateSelectorWithUniqueSibling(oOptions, mTargetMultiSelector);
         });
     };
@@ -455,8 +457,9 @@
     };
 
      /**
-     * iterate thourgh all controls a a given level and attempt to generate a unique selector for each one.
+     * Iterate through all controls a a given level and attempt to generate a unique selector for each one.
      * stop the cycle as soon as one unique selector is found
+     * @param {object} oOptions Object with options
      * @param {Array} oOptions.siblings the children at a given tree level
      * @param {object} oOptions.options filter options
      * @param {number} oOptions.index index of the child for which to start the search
@@ -478,7 +481,7 @@
             shallow: true
         }).then(function (mUniqueSiblingSelector) {
             // then, combine the sibling's selector with the non-unique selector for the target
-            var mSelector = $.extend({}, oOptions.targetMultiSelector, {
+            var mSelector = extend({}, oOptions.targetMultiSelector, {
                 sibling: [
                     mUniqueSiblingSelector, {
                         level: oOptions.level.number
@@ -489,7 +492,7 @@
             return _ControlSelectorGenerator._filterUniqueHierarchical(oOptions.options)(mSelector);
         }).catch(function () {
             // if combination is not unique, search through the other children of the same ancestor
-            return _ControlSelectorGenerator._generateSelectorWithUniqueSiblingAtLevel($.extend(oOptions, {
+            return _ControlSelectorGenerator._generateSelectorWithUniqueSiblingAtLevel(extend(oOptions, {
                 index: oOptions.index + 1
             }));
         });
@@ -517,8 +520,9 @@
     /**
      * Filters valid selectors.
      * @param {object} vSelector a control selector or array of selectors
+     * @param {object} oOptions Object with options
      * @param {object} oOptions.validationRoot the subtree root. If not defined, the selector will be valid for the entire app.
-     * @param {boolean} oOptions.multiple whether the selector can match mulitple controls. False by default.
+     * @param {boolean} oOptions.multiple whether the selector can match multiple controls. False by default.
      * @returns {array} an array of valid selectors
      * @private
      */

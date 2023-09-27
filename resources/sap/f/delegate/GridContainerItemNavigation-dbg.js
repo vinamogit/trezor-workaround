@@ -1,16 +1,21 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
+	"sap/ui/core/Element",
 	"sap/ui/core/delegate/ItemNavigation",
 	"./GridItemNavigation",
-	"sap/ui/dom/containsOrEquals"
-], function (
+	"sap/ui/dom/containsOrEquals",
+	"sap/ui/thirdparty/jquery",
+	"sap/ui/dom/jquery/Selectors" // provides jQuery custom selector ":sapTabbable"
+], function(
+	Element,
 	ItemNavigation,
 	GridItemNavigation,
-	containsOrEquals
+	containsOrEquals,
+	jQuery
 ) {
 	"use strict";
 
@@ -36,43 +41,30 @@ sap.ui.define([
 	 *
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @extends sap.f.delegate.GridItemNavigation
 	 *
 	 * @private
 	 * @constructor
-	 * @alias sap.f.delegate.GridItemNavigation
-	 * @ui5-metamodel This control/element will also be described in the UI5 (legacy) designtime metamodel
+	 * @alias sap.f.delegate.GridContainerItemNavigation
 	 */
-	var GridContainerItemNavigation = GridItemNavigation.extend("sap.f.delegate.GridContainerItemNavigation", /** @lends sap.f.GridContainerItemNavigation.prototype */ {
-		constructor: function () {
+	var GridContainerItemNavigation = GridItemNavigation.extend("sap.f.delegate.GridContainerItemNavigation", /** @lends sap.f.delegate.GridContainerItemNavigation.prototype */ {
+		constructor: function() {
 			GridItemNavigation.apply(this, arguments);
 
 			this.attachEvent(ItemNavigation.Events.FocusLeave, this._onFocusLeave, this);
-		},
-		metadata: {
-			library: "sap.f",
-			properties: {
-
-			},
-			events: {
-
-			}
 		}
 	});
 
-	GridContainerItemNavigation.prototype._onFocusLeave = function (oEvent) {
-
+	GridContainerItemNavigation.prototype._onFocusLeave = function(oEvent) {
 		var currentFocused = this.getFocusedDomRef();
-		this.getItemDomRefs().forEach(function (item, index) {
+		this.getItemDomRefs().forEach(function(item, index) {
 			if (currentFocused === item) {
 				var nextFocusableIndex = index++;
 				this.setFocusedIndex(nextFocusableIndex);
 			}
 		}.bind(this));
-
-		this._bFocusLeft = true;
 	};
 
 	/**
@@ -108,17 +100,15 @@ sap.ui.define([
 		var $AllTabbables = $LastFocused.find(":sapTabbable");
 
 		// leave only real tabbable elements in the tab chain, GridContainer and List types have dummy areas
-		$AllTabbables.map(function (index, element) {
-			if (element.className.indexOf("DummyArea") === -1) {
+		$AllTabbables.map(function(index, element) {
+			if (element.className.indexOf("DummyArea") === -1 && element.className.indexOf("sapMListUl") === -1) {
 				Tabbables.push(element);
 			}
 		});
 
-		var $Tabbables = jQuery(Tabbables),
-			focusableIndex = $Tabbables.length === 1 ? 0 : $Tabbables.length  - 1;
-
+		var focusableIndex = Tabbables.length - 1;
 		if (focusableIndex === -1 ||
-			($Tabbables.control(focusableIndex) && $Tabbables.control(focusableIndex).getId() === oEvent.target.id)) {
+			(Element.closestTo(Tabbables[focusableIndex]) && Element.closestTo(Tabbables[focusableIndex]).getId() === oEvent.target.id)) {
 			this._lastFocusedElement = oEvent.target;
 			this.forwardTab(true);
 		}
@@ -166,7 +156,7 @@ sap.ui.define([
 			oControl;
 
 		if ($listItem.length) {
-			oControl = $listItem.children().eq(0).control()[0];
+			oControl = Element.closestTo($listItem.children()[0]);
 
 			// if the list item visual focus is displayed by the currently focused control,
 			// move the focus to the list item
@@ -202,17 +192,29 @@ sap.ui.define([
 	 * Handles when it is needed to return focus to correct place
 	 */
 	GridContainerItemNavigation.prototype.onfocusin = function(oEvent) {
-
 		GridItemNavigation.prototype.onfocusin.call(this, oEvent);
 
+		// focus is coming in the grid container from Tab
+		if (oEvent.target === this._getGridInstance().getDomRef("before") && !this.getRootDomRef().contains(oEvent.relatedTarget)) {
+			var oLastFocused = this._lastFocusedElement || this.getItemDomRefs()[this.getFocusedIndex()];
+
+			if (oLastFocused) {
+				oLastFocused.focus();
+			}
+			return;
+		}
+
+		// focus is coming in the grid container from Shift + Tab
+		if (oEvent.target === this._getGridInstance().getDomRef("after") && !this.getRootDomRef().contains(oEvent.relatedTarget)) {
+			this._focusPrevious(oEvent);
+			return;
+		}
+
 		var $listItem = jQuery(oEvent.target).closest('.sapFGridContainerItemWrapperNoVisualFocus'),
-			oControl,
-			aNavigationDomRefs,
-			iLastFocusedIndex,
-			oLastFocused;
+			oControl;
 
 		if ($listItem.length) {
-			oControl = $listItem.children().eq(0).control()[0];
+			oControl = Element.closestTo($listItem.children()[0]);
 
 			if (oControl) {
 				doVirtualFocusin(oControl);
@@ -226,23 +228,32 @@ sap.ui.define([
 				}
 			}
 		}
+	};
 
-		if (oEvent.target.classList.contains("sapFGridContainerItemWrapper")) {
-			this._lastFocusedElement = null;
+	/**
+	 * Focus previously focused element known in item navigation, or focus the first item or its content
+	 * @param {jQuery.Event} oEvent the event
+	 */
+	GridContainerItemNavigation.prototype._focusPrevious = function(oEvent) {
+		var aItemDomRefs = this.getItemDomRefs();
+		var iLastFocusedIndex = this.getFocusedIndex(); // get the last focused element from the ItemNavigation
+
+		if (!aItemDomRefs.length) {
+			return;
 		}
 
-		if (this._bFocusLeft && !this._bIsMouseDown) {
-			aNavigationDomRefs = this.getItemDomRefs();
-			iLastFocusedIndex = this.getFocusedIndex();
+		var oFocusCandidate;
 
-			oLastFocused = this._lastFocusedElement || aNavigationDomRefs[iLastFocusedIndex];
-
-			if (!containsOrEquals(oLastFocused, oEvent.target)) {
-				oLastFocused.focus();
-			}
+		if (iLastFocusedIndex < 0) {
+			oFocusCandidate = aItemDomRefs[0];
+			this.setFocusedIndex(0);
+		} else {
+			oFocusCandidate = aItemDomRefs[iLastFocusedIndex];
 		}
 
-		this._bFocusLeft = false;
+		var $FocusCandidate = jQuery(oFocusCandidate);
+		var $TabbableChildren = $FocusCandidate.find(":sapTabbable");
+		$FocusCandidate.add($TabbableChildren).eq(-1).focus();
 	};
 
 	/**
@@ -285,7 +296,7 @@ sap.ui.define([
 			this.aItemDomRefs[this.iFocusedIndex].focus();
 
 			// make the DOM element that has the outline focus to be visible in the view area
-			oInnerControl = jQuery(this.aItemDomRefs[this.iFocusedIndex].firstChild).control()[0];
+			oInnerControl = Element.closestTo(this.aItemDomRefs[this.iFocusedIndex].firstChild);
 
 			if (oInnerControl) {
 				oInnerControlFocusDomRef = oInnerControl.getFocusDomRef();

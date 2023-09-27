@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -11,6 +11,7 @@ sap.ui.define([
 	"sap/m/Title",
 	"sap/m/FormattedText",
 	"sap/m/Illustration",
+	"sap/base/Log",
 	"sap/ui/core/Control",
 	"sap/ui/core/Core",
 	'sap/ui/core/library',
@@ -23,6 +24,7 @@ sap.ui.define([
 	Title,
 	FormattedText,
 	Illustration,
+	Log,
 	Control,
 	Core,
 	coreLibrary,
@@ -41,6 +43,8 @@ sap.ui.define([
 	// shortcut for sap.ui.core.IllustratedMessageType
 	var TextAlign = coreLibrary.TextAlign;
 
+	// shortcut for sap.ui.core.TitleLevel
+	var TitleLevel = coreLibrary.TitleLevel;
 
 	/**
 	 * Constructor for a new <code>IllustratedMessage</code>.
@@ -56,8 +60,8 @@ sap.ui.define([
 	 * An <code>IllustratedMessage</code> is a recommended combination of a solution-oriented message,
 	 * an engaging illustration, and conversational tone to better communicate an empty or a success state
 	 * than just show a message alone.
-	 * Empty states are moments in the user experience where there’s no data to display.
-	 * Success states are occasions to celebrate and reward a user’s special accomplishment or the completion of an important task.
+	 * Empty states are moments in the user experience where there's no data to display.
+	 * Success states are occasions to celebrate and reward a user's special accomplishment or the completion of an important task.
 	 *
 	 * The <code>IllustratedMessage</code> control is meant to be used inside container controls,
 	 * for example a <code>Card</code>, a <code>Dialog</code>, or a <code>Page</code>.
@@ -82,13 +86,12 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.98
 	 * @alias sap.m.IllustratedMessage
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var IllustratedMessage = Control.extend("sap.m.IllustratedMessage", /** @lends sap.m.IllustratedMessage.prototype */ {
 		metadata: {
@@ -98,13 +101,21 @@ sap.ui.define([
 				/**
 				 * Defines the description displayed below the title.
 				 *
-				 * If there is no initial input from the app developer and the default illustration set is being used,
+				 * If there is no initial input from the app developer, <code>enableDefaultTitleAndDescription</code> is <code>true</code> and the default illustration set is being used,
 				 * a default description for the current illustration type is going to be displayed. The default
 				 * description is stored in the <code>sap.m</code> resource bundle.
 				 *
 				 * @since 1.98
 				 */
 				description : {type : "string", group : "Misc", defaultValue : ""},
+
+				/**
+				 * Defines whether the default title and description should be used when the input for their respective part is empty
+				 * and the default illustration set is being used. Title and description are stored in the <code>sap.m</code> resource bundle.
+				 *
+				 * @since 1.111
+				 */
+				enableDefaultTitleAndDescription: { type: "boolean", group: "Appearance", defaultValue: true },
 
 				/**
 				 * Defines whether the value set in the <code>description</code> property is displayed
@@ -114,6 +125,14 @@ sap.ui.define([
 				 * @since 1.98
 				 */
 				enableFormattedText: { type: "boolean", group: "Appearance", defaultValue: false },
+
+				/**
+				 * Defines whether the <code>IllustratedMessage</code> would resize itself according to it's height
+				 * if <code>illustrationSize</code> property is set to <code>IllustratedMessageSize.Auto</code>.
+				 *
+				 * @since 1.104
+				 */
+				enableVerticalResponsiveness: { type: "boolean", group: "Appearance", defaultValue: false },
 
 				/**
 				 * Determines which illustration breakpoint variant is used.
@@ -145,12 +164,23 @@ sap.ui.define([
 				/**
 				 * Defines the title that is displayed below the illustration.
 				 *
-				 * If there is no initial input from the app developer and the default illustration set is being used,
-				 * a default title is displayed corresponding to the current <code>illustrationType</code>.
+				 * If there is no initial input from the app developer, <code>enableDefaultTitleAndDescription</code> is <code>true</code> and the default illustration set is being used,
+				 * a default title is displayed corresponding to the current <code>illustrationType</code>. The default
+				 * title is stored in the <code>sap.m</code> resource bundle.
 				 *
 				 * @since 1.98
 				 */
-				title: {type: "string", group: "Misc", defaultValue: ""}
+				title: {type: "string", group: "Misc", defaultValue: ""},
+
+				/**
+				 * Defines the semantic level of the title. When using <code>Auto</code>, no explicit level information is written.
+				 *
+				 * <b>Note:</b> Used for accessibility purposes only.
+				 *
+				 * @public
+				 * @since 1.111
+				 */
+				ariaTitleLevel: {type: "sap.ui.core.TitleLevel", group : "Appearance", defaultValue : TitleLevel.Auto}
 			},
 			aggregations: {
 
@@ -194,8 +224,17 @@ sap.ui.define([
 				 */
 				_title: {type: "sap.m.Title", multiple: false, visibility: "hidden"}
 			},
+			associations : {
+				/**
+				 * Association to controls / IDs which label those controls (see WAI-ARIA attribute aria-labelledBy).
+	 			 * @since 1.106.0
+				 */
+				 illustrationAriaLabelledBy: {type : "sap.ui.core.Control", multiple : true, singularName : "illustrationAriaLabelledBy"}
+			},
 			dnd: { draggable: false, droppable: true }
-		}
+		},
+
+		renderer: IllustratedMessageRenderer
 	});
 
 	/**
@@ -215,7 +254,10 @@ sap.ui.define([
 		SuccessScreen: "SuccessScreen",
 		NoMail: "NoMail",
 		NoSavedItems: "NoSavedItems",
-		NoTasks: "NoTasks"
+		NoTasks: "NoTasks",
+		UploadToCloud: "UploadToCloud",
+		NoDimensionsSet: "NoDimensionsSet",
+		AddDimensions: "AddDimensions"
 	};
 
 	IllustratedMessage.FALLBACK_TEXTS = {
@@ -231,7 +273,7 @@ sap.ui.define([
 		SimpleBalloon: IllustratedMessage.ORIGINAL_TEXTS.BalloonSky,
 		SimpleBell: IllustratedMessage.ORIGINAL_TEXTS.NoNotifications,
 		SimpleCalendar: IllustratedMessage.ORIGINAL_TEXTS.NoActivities,
-		SimpleCheckmark: IllustratedMessage.ORIGINAL_TEXTS.SuccessScreen,
+		SimpleCheckMark: IllustratedMessage.ORIGINAL_TEXTS.SuccessScreen,
 		SimpleConnection: IllustratedMessage.ORIGINAL_TEXTS.UnableToLoad,
 		SimpleEmptyDoc: IllustratedMessage.ORIGINAL_TEXTS.NoData,
 		SimpleEmptyList: IllustratedMessage.ORIGINAL_TEXTS.NoEntries,
@@ -241,7 +283,10 @@ sap.ui.define([
 		SimpleNoSavedItems: IllustratedMessage.ORIGINAL_TEXTS.NoSavedItems,
 		SimpleNotFoundMagnifier: IllustratedMessage.ORIGINAL_TEXTS.NoSearchResults,
 		SimpleReload: IllustratedMessage.ORIGINAL_TEXTS.UnableToLoad,
-		SimpleTask: IllustratedMessage.ORIGINAL_TEXTS.NoTasks
+		SimpleTask: IllustratedMessage.ORIGINAL_TEXTS.NoTasks,
+		SuccessBalloon: IllustratedMessage.ORIGINAL_TEXTS.BalloonSky,
+		SuccessCheckMark: IllustratedMessage.ORIGINAL_TEXTS.SuccessScreen,
+		SuccessHighFive: IllustratedMessage.ORIGINAL_TEXTS.BalloonSky
 	};
 
 	IllustratedMessage.PREPENDS = {
@@ -252,14 +297,24 @@ sap.ui.define([
 	IllustratedMessage.BREAK_POINTS = {
 		DIALOG: 679,
 		SPOT: 319,
-		BASE: 259
+		DOT: 259,
+		BASE: 159
 	};
 
+	IllustratedMessage.BREAK_POINTS_HEIGHT = {
+		DIALOG: 451,
+		SPOT: 296,
+		DOT: 154,
+		BASE: 87
+	};
+
+	// The medias should always be in ascending order (smaller to bigger)
 	IllustratedMessage.MEDIA = {
-		BASE: "sapFIllustratedMessage-Base",
-		SPOT: "sapFIllustratedMessage-Spot",
-		DIALOG: "sapFIllustratedMessage-Dialog",
-		SCENE: "sapFIllustratedMessage-Scene"
+		BASE: "sapMIllustratedMessage-Base",
+		DOT: "sapMIllustratedMessage-Dot",
+		SPOT: "sapMIllustratedMessage-Spot",
+		DIALOG: "sapMIllustratedMessage-Dialog",
+		SCENE: "sapMIllustratedMessage-Scene"
 	};
 
 	IllustratedMessage.RESIZE_HANDLER_ID = {
@@ -271,7 +326,9 @@ sap.ui.define([
 	 */
 
 	IllustratedMessage.prototype.init = function () {
+		this._sLastKnownMedia = null;
 		this._updateInternalIllustrationSetAndType(this.getIllustrationType());
+		Core.getEventBus().subscribe("sapMIllusPool-assetLdgFailed", this._handleMissingAsset.bind(this));
 	};
 
 	IllustratedMessage.prototype.onBeforeRendering = function () {
@@ -283,6 +340,7 @@ sap.ui.define([
 		this._attachResizeHandlers();
 		this._preventWidowWords(this._getTitle().getDomRef());
 		this._preventWidowWords(this._getDescription().getDomRef());
+		this._setDefaultIllustrationLabel();
 	};
 
 	IllustratedMessage.prototype.exit = function () {
@@ -298,10 +356,27 @@ sap.ui.define([
 			return this;
 		}
 
-		this._updateInternalIllustrationSetAndType(sValue);
+		if (typeof sValue === 'string') {
+			this._updateInternalIllustrationSetAndType(sValue);
+		}
 
 		return this.setProperty("illustrationType", sValue);
 	};
+
+	/**
+	 * Sets the title of the IllustratedMessage as default aria-labelledby to the Illustration.
+	 * @private
+	 */
+	IllustratedMessage.prototype._setDefaultIllustrationLabel = function (sValue) {
+		var aAriaLabelledBy = this.getAssociation("ariaLabelledBy"),
+			sTitleId = this._getTitle().sId;
+
+		// check if falsy or empty array
+		if (!aAriaLabelledBy || !aAriaLabelledBy.length) {
+			this.addIllustrationAriaLabelledBy(sTitleId);
+		}
+	};
+
 
 	/**
 	 * Gets the default text for the description aggregation.
@@ -339,6 +414,32 @@ sap.ui.define([
 	};
 
 	/**
+	 * Helper method which decides if the title should be rendered.
+	 * When it's empty it shouldn't take space in the DOM.
+	 * @private
+	 * @returns {boolean} whether or not the title should be rendered
+	 */
+	IllustratedMessage.prototype._shouldRenderTitle = function () {
+		return this._getTitle().getText().length !== 0;
+	};
+
+	/**
+	 * Helper method which decides if the description should be rendered.
+	 * When it's empty it shouldn't take space in the DOM.
+	 * @private
+	 * @returns {boolean} whether or not the description should be rendered
+	 */
+	IllustratedMessage.prototype._shouldRenderDescription = function () {
+		var oDescription = this._getDescription();
+
+		if (this.getEnableFormattedText()) {
+			return oDescription.getHtmlText().length !== 0;
+		} else {
+			return oDescription.getText().length !== 0;
+		}
+	};
+
+	/**
 	 * Gets the correct aggregation for the description.
 	 * If the enableFormattedText property is true, the function returns
 	 * sap.m.FormattedText. If it's false, it returns sap.m.Text.
@@ -350,9 +451,9 @@ sap.ui.define([
 	};
 
 	/**
-	 * Gets content of the _formattedText aggregation.
+	 * Gets content of the formattedText aggregation.
 	 * @private
-	 * @returns {sap.m.FormattedText}
+	 * @returns {sap.m.FormattedText} The sap.m.FormattedText control instance
 	 */
 	IllustratedMessage.prototype._getFormattedText = function () {
 		var sDescription = this.getDescription(),
@@ -363,20 +464,20 @@ sap.ui.define([
 			this.setAggregation("_formattedText", oFormattedText);
 		}
 
-		if (sDescription) {
-			oFormattedText.setHtmlText(sDescription);
-		} else {
+		if (!sDescription && this.getEnableDefaultTitleAndDescription()) {
 			// Use default text for the description if applicable
 			oFormattedText.setHtmlText(this._getDefaultDescription());
+		} else {
+			oFormattedText.setHtmlText(sDescription);
 		}
 
 		return oFormattedText;
 	};
 
 	/**
-	 * Gets content of the _illustration aggregation.
+	 * Gets content of the illustration aggregation.
 	 * @private
-	 * @returns {sap.m.Illustration}
+	 * @returns {sap.m.Illustration} The sap.m.Illustration control instance
 	 */
 	IllustratedMessage.prototype._getIllustration = function () {
 		var oIllustration = this.getAggregation("_illustration");
@@ -397,7 +498,7 @@ sap.ui.define([
 	/**
 	 * Gets content of the _text aggregation.
 	 * @private
-	 * @returns {sap.m.Text}
+	 * @returns {sap.m.Text} The sap.m.Text control instance
 	 */
 	IllustratedMessage.prototype._getText = function () {
 		var sDescription = this.getDescription(),
@@ -408,11 +509,11 @@ sap.ui.define([
 			this.setAggregation("_text", oText);
 		}
 
-		if (sDescription) {
-			oText.setText(sDescription);
-		} else {
+		if (!sDescription && this.getEnableDefaultTitleAndDescription()) {
 			// Use default text for the description if applicable
 			oText.setText(this._getDefaultDescription());
+		} else {
+			oText.setText(sDescription);
 		}
 
 		return oText;
@@ -421,7 +522,7 @@ sap.ui.define([
 	/**
 	 * Gets content of the _title aggregation.
 	 * @private
-	 * @returns {sap.m.Title}
+	 * @returns {sap.m.Title} The sap.m.Title control instance
 	 */
 	IllustratedMessage.prototype._getTitle = function () {
 		var sTitle = this.getTitle(),
@@ -432,11 +533,11 @@ sap.ui.define([
 			this.setAggregation("_title", oTitle);
 		}
 
-		if (sTitle) {
-			oTitle.setText(sTitle);
-		} else {
+		if (!sTitle && this.getEnableDefaultTitleAndDescription()) {
 			// Use default text for the title if applicable
 			oTitle.setText(this._getDefaultTitle());
+		} else {
+			oTitle.setText(sTitle);
 		}
 
 		return oTitle;
@@ -449,7 +550,7 @@ sap.ui.define([
 	/**
 	 * Helper function which ensures that there is non-breaking space between the last two words
 	 * of a given DOM content. By adding it, we prevent one word (widow) on the last row of a text node.
-	 * @param {DOMRef} oDomRef - the DOM object which will be checked against
+	 * @param {HTMLElement} oDomRef - the DOM object which will be checked against
 	 * @private
 	 */
 	IllustratedMessage.prototype._preventWidowWords = function(oDomRef) {
@@ -474,14 +575,16 @@ sap.ui.define([
 	 */
 	IllustratedMessage.prototype._updateDomSize = function () {
 		var oDomRef = this.getDomRef(),
-			sSize;
+			sSize, sCustomSize;
 
 		if (oDomRef) {
 			sSize = this.getIllustrationSize();
 			if (sSize === IllustratedMessageSize.Auto) {
-				this._updateMedia(oDomRef.getBoundingClientRect().width);
+				this._updateMedia(oDomRef.getBoundingClientRect().width, oDomRef.getBoundingClientRect().height);
 			} else {
-				this._updateMediaStyle(IllustratedMessage.MEDIA[sSize.toUpperCase()]);
+				sCustomSize = IllustratedMessage.MEDIA[sSize.toUpperCase()];
+				this._updateSymbol(sCustomSize);
+				this._updateMediaStyle(sCustomSize);
 			}
 		}
 
@@ -489,6 +592,7 @@ sap.ui.define([
 
 	/**
 	 * Caches the <code>IllustratedMessage</code> illustration set and illustration type in private instance variables.
+	 * @param {string} sValue The Set-Type pair which should be stored
 	 * @private
 	 */
 	IllustratedMessage.prototype._updateInternalIllustrationSetAndType = function (sValue) {
@@ -500,52 +604,125 @@ sap.ui.define([
 
 	/**
 	 * Handles the resize event of the <code>IllustratedMessage</code>.
-	 * @param {jQuery.Event} oEvent
+	 * @param {jQuery.Event} oEvent The event object
 	 * @private
 	 */
 	IllustratedMessage.prototype._onResize = function (oEvent) {
-		var iCurrentWidth = oEvent.size.width;
+		var iCurrentWidth = oEvent.size.width,
+			iCurrentHeight = oEvent.size.height;
 
-		this._updateMedia(iCurrentWidth);
+		this._updateMedia(iCurrentWidth, iCurrentHeight);
 	};
 
 	/**
-	 * Updates the media size of the control based on its own width, not on the entire screen size (which media query does).
-	 * @param {Number} iWidth - the actual width of the control
+	 * Updates the media size of the control based on its own width and height, not on the entire screen size (which media query does).
+	 * @param {number} iWidth - the actual width of the control
+	 * @param {number} iHeight - the actual height of the control
 	 * @private
 	 */
-	IllustratedMessage.prototype._updateMedia = function (iWidth) {
-		if (!iWidth) {
+	IllustratedMessage.prototype._updateMedia = function (iWidth, iHeight) {
+		var bVertical = this.getEnableVerticalResponsiveness(),
+			sNewMedia;
+
+		if (!iWidth && !iHeight) {
 			return;
 		}
 
-		if (iWidth <= IllustratedMessage.BREAK_POINTS.BASE) {
-			this._updateMediaStyle(IllustratedMessage.MEDIA.BASE);
-		} else if (iWidth <= IllustratedMessage.BREAK_POINTS.SPOT) {
-			this._updateMediaStyle(IllustratedMessage.MEDIA.SPOT);
-		} else if (iWidth <= IllustratedMessage.BREAK_POINTS.DIALOG) {
-			this._updateMediaStyle(IllustratedMessage.MEDIA.DIALOG);
+		if (iWidth <= IllustratedMessage.BREAK_POINTS.BASE || (iHeight <= IllustratedMessage.BREAK_POINTS_HEIGHT.BASE && bVertical)) {
+			sNewMedia = IllustratedMessage.MEDIA.BASE;
+		} else if (iWidth <= IllustratedMessage.BREAK_POINTS.DOT || (iHeight <= IllustratedMessage.BREAK_POINTS_HEIGHT.DOT && bVertical)) {
+			sNewMedia = IllustratedMessage.MEDIA.DOT;
+		} else if (iWidth <= IllustratedMessage.BREAK_POINTS.SPOT || (iHeight <= IllustratedMessage.BREAK_POINTS_HEIGHT.SPOT && bVertical)) {
+			sNewMedia = IllustratedMessage.MEDIA.SPOT;
+		} else if (iWidth <= IllustratedMessage.BREAK_POINTS.DIALOG || (iHeight <= IllustratedMessage.BREAK_POINTS_HEIGHT.DIALOG && bVertical)) {
+			sNewMedia = IllustratedMessage.MEDIA.DIALOG;
 		} else {
-			this._updateMediaStyle(IllustratedMessage.MEDIA.SCENE);
+			sNewMedia = IllustratedMessage.MEDIA.SCENE;
+		}
+
+		this._updateSymbol(sNewMedia);
+		this._updateMediaStyle(sNewMedia);
+	};
+
+	/**
+	 * It puts the appropriate classes on the control based on the current media size.
+	 * @param {string} sCurrentMedia The media currently being used
+	 * @private
+	 */
+	IllustratedMessage.prototype._updateMediaStyle = function (sCurrentMedia) {
+		if (this._sLastKnownMedia !== sCurrentMedia) {
+			this._sLastKnownMedia = sCurrentMedia;
+		} else {
+			return; // No need to iterate over the media classes if the media is the same as the one previously used
+		}
+		Object.keys(IllustratedMessage.MEDIA).forEach(function (sMedia) {
+			var bEnable = sCurrentMedia === IllustratedMessage.MEDIA[sMedia];
+			this.toggleStyleClass(IllustratedMessage.MEDIA[sMedia], bEnable);
+		}, this);
+	};
+
+	/**
+	 * Updates illustration's symbol based on the current media size.
+	 * @param {string} sCurrentMedia
+	 * @private
+	 */
+
+	 IllustratedMessage.prototype._updateSymbol = function (sCurrentMedia) {
+		// No need to require a resource for BASE illustrationSize, since there is none
+		if (sCurrentMedia === IllustratedMessage.MEDIA.BASE) {
+			return;
+		}
+
+		var sIdMedia = sCurrentMedia.substring(sCurrentMedia.indexOf('-') + 1);
+
+		this._getIllustration()
+			.setSet(this._sIllustrationSet, true)
+			.setMedia(sIdMedia, true)
+			.setType(this._sIllustrationType);
+
+	};
+
+	/**
+	 * Returns a fallback media size, for cases when the initially requested asset is not found.
+	 * Chooses the illustration breakpoint bigger than the current one (e.g. Dot -> Spot).
+	 *
+	 * @since 1.108.0
+	 * @return {string} The fallback media size
+	 * @private
+	 */
+	 IllustratedMessage.prototype._getFallbackMedia = function () {
+		var sMedia = this._sLastKnownMedia,
+			aMediaValues = Object.values(IllustratedMessage.MEDIA),
+			iIndexOfMedia = aMediaValues.indexOf(sMedia);
+
+		if (iIndexOfMedia > -1 && iIndexOfMedia < aMediaValues.length - 1) {
+			return aMediaValues[iIndexOfMedia + 1];
+		} else {
+			return aMediaValues[aMediaValues.length - 1];
 		}
 	};
 
 	/**
-	 * It puts the appropriate classes on the control and updates illustration's symbol based on the current media size.
-	 * @param {string} sCurrentMedia
+	 * Handles missing assets by setting the media to a larger size.
+	 * Once no larger media size is available, displays no SVG.
+	 *
+	 * @since 1.108.0
+	 * @static
 	 * @private
 	 */
-	IllustratedMessage.prototype._updateMediaStyle = function (sCurrentMedia) {
-		Object.keys(IllustratedMessage.MEDIA).forEach(function (sMedia) {
-			var bEnable = sCurrentMedia === IllustratedMessage.MEDIA[sMedia],
-				sIdMedia = sMedia.charAt(0) + sMedia.slice(1).toLowerCase();
-			this.toggleStyleClass(IllustratedMessage.MEDIA[sMedia], bEnable);
-			if (bEnable && sCurrentMedia !== IllustratedMessage.MEDIA.BASE) { // No need to require a resource for BASE illustrationSize, since there is none
-				this._getIllustration().setSet(this._sIllustrationSet, true)
-					.setMedia(sIdMedia, true)
-					.setType(this._sIllustrationType);
-			}
-		}, this);
+	IllustratedMessage.prototype._handleMissingAsset = function () {
+		var oIllustration,
+			aMediaValues = Object.values(IllustratedMessage.MEDIA),
+			sFallbackMedia = "";
+
+		if (this._sLastKnownMedia !== aMediaValues[aMediaValues.length - 1]) {
+			oIllustration = this._getIllustration();
+			sFallbackMedia = this._getFallbackMedia();
+			oIllustration.setMedia(sFallbackMedia.substring(sFallbackMedia.indexOf('-') + 1));
+			Log.warning(this._sLastKnownMedia + " is unavailable, retrying with larger size...", this);
+		} else {
+			Log.warning("No larger fallback asset available, no SVG will be displayed.", this);
+		}
 	};
 
 	/**
@@ -575,8 +752,8 @@ sap.ui.define([
 	/**
 	 * Registers resize handler.
 	 * @param {string} sHandler the handler ID
-	 * @param {Object} oObject
-	 * @param {Function} fnHandler
+	 * @param {Object} oObject object on which the resize handler is being registered
+	 * @param {Function} fnHandler the callback function for each resize
 	 * @private
 	 */
 	IllustratedMessage.prototype._registerResizeHandler = function (sHandler, oObject, fnHandler) {
@@ -613,6 +790,70 @@ sap.ui.define([
 		};
 	};
 
+	/**
+	 * @see sap.ui.core.Control#getAccessibilityInfo
+	 * @returns {object} Accessibility information for <code>sap.m.IllustratedMessage</code> control
+	 * @since 1.101
+	 * @protected
+	 */
+	IllustratedMessage.prototype.getAccessibilityInfo = function () {
+		var sTitle = this._getTitle().getText(),
+			sDescription = this._getDescription().getText(),
+			aAdditionalContent = this.getAdditionalContent();
+		return {
+			type: this._getResourceBundle().getText("ACC_CTR_ILLUSTRATED_MESSAGE"),
+			description: sTitle + ". " + sDescription,
+			focusable: !!aAdditionalContent.length,
+			children: aAdditionalContent
+		};
+	};
+
+	IllustratedMessage.prototype.addIllustrationAriaLabelledBy = function(sID) {
+		var aAriaLabelledBy = this.getAssociation("ariaLabelledBy"),
+			sTitleId = this._getTitle().sId,
+			oIllustratedMessageIllustration = this._getIllustration();
+
+		this.addAssociation("ariaLabelledBy", sID, true);
+
+		if (aAriaLabelledBy && aAriaLabelledBy.includes(sTitleId)) {
+			this.removeIllustrationAriaLabelledBy(sTitleId);
+		}
+
+		oIllustratedMessageIllustration.addAriaLabelledBy(sID);
+
+		return this;
+	};
+
+	IllustratedMessage.prototype.removeIllustrationAriaLabelledBy = function(sID) {
+
+		this.removeAssociation("ariaLabelledBy", sID, true);
+
+		var oIllustratedMessageIllustration = this._getIllustration();
+		oIllustratedMessageIllustration.removeAriaLabelledBy(sID);
+
+		this._setDefaultIllustrationLabel();
+
+		return this;
+	};
+
+	IllustratedMessage.prototype.removeAllAriaLabelledBy = function(sID) {
+		this.removeAssociation("ariaLabelledBy", sID, true);
+
+		var oIllustratedMessageIllustration = this._getIllustration();
+		oIllustratedMessageIllustration.removeAllAriaLabelledBy(sID);
+
+		this._setDefaultIllustrationLabel();
+
+		return this;
+	};
+
+	IllustratedMessage.prototype.setAriaTitleLevel = function(sTitleLevel) {
+		this.setProperty("ariaTitleLevel", sTitleLevel, true);
+
+		this._getTitle().setLevel(sTitleLevel);
+
+		return this;
+	};
 
 	return IllustratedMessage;
 

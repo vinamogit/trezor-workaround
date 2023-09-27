@@ -1,11 +1,12 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides control sap.m.MessagePopover.
 sap.ui.define([
+	'sap/ui/core/Core',
 	"./ResponsivePopover",
 	"./Button",
 	"./Toolbar",
@@ -15,6 +16,7 @@ sap.ui.define([
 	"./semantic/SemanticPage",
 	"./Popover",
 	"./MessageView",
+	"./MessageItem",
 	"sap/ui/Device",
 	"./MessagePopoverRenderer",
 	"sap/base/Log",
@@ -22,6 +24,7 @@ sap.ui.define([
 	"sap/ui/thirdparty/jquery"
 ],
 function(
+	Core,
 	ResponsivePopover,
 	Button,
 	Toolbar,
@@ -31,6 +34,7 @@ function(
 	SemanticPage,
 	Popover,
 	MessageView,
+	MessageItem,
 	Device,
 	MessagePopoverRenderer,
 	Log,
@@ -91,14 +95,13 @@ function(
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @public
 		 * @since 1.28
 		 * @alias sap.m.MessagePopover
 		 * @see {@link fiori:https://experience.sap.com/fiori-design-web/message-popover/ Message Popover}
-		 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 		 */
 		var MessagePopover = Control.extend("sap.m.MessagePopover", /** @lends sap.m.MessagePopover.prototype */ {
 			metadata: {
@@ -109,12 +112,12 @@ function(
 					 * You can use this function in order to validate the description before displaying it.
 					 * @callback sap.m.MessagePopover~asyncDescriptionHandler
 					 * @param {object} config A single parameter object
-					 * @param {MessagePopoverItem} config.item Reference to respective MessagePopoverItem instance
+					 * @param {MessageItem} config.item Reference to respective MessageItem instance
 					 * @param {object} config.promise Object grouping a promise's reject and resolve methods
 					 * @param {function} config.promise.resolve Method to resolve promise
 					 * @param {function} config.promise.reject Method to reject promise
 					 */
-					asyncDescriptionHandler: {type: "any", group: "Behavior", defaultValue: null},
+					asyncDescriptionHandler: {type: "function", group: "Behavior", defaultValue: null},
 
 					/**
 					 * Callback function for resolving a promise after a link has been asynchronously validated inside this function.
@@ -127,7 +130,7 @@ function(
 					 * @param {function} config.promise.resolve Method to resolve promise
 					 * @param {function} config.promise.reject Method to reject promise
 					 */
-					asyncURLHandler: {type: "any", group: "Behavior", defaultValue: null},
+					asyncURLHandler: {type: "function", group: "Behavior", defaultValue: null},
 
 					/**
 					 * Determines the position, where the control will appear on the screen.
@@ -143,6 +146,7 @@ function(
 
 					/**
 					 * Defines whether the MessageItems are grouped or not.
+					 * @since 1.73
 					 */
 					groupItems: { type: "boolean", group: "Behavior", defaultValue: false }
 				},
@@ -151,7 +155,15 @@ function(
 					/**
 					 * A list with message items.
 					 */
-					items: {type: "sap.m.MessageItem", altTypes: ["sap.m.MessagePopoverItem"], multiple: true, singularName: "item"},
+					items: {
+						type: "sap.m.MessageItem",
+						multiple: true,
+						singularName: "item",
+						forwarding: {
+							getter: "_getMessageView",
+							aggregation: "items"
+						}
+					},
 
 					/**
 					 * Sets a custom header button.
@@ -216,7 +228,7 @@ function(
 							/**
 							 * Refers to the <code>MessagePopover</code> item that is being presented.
 							 */
-							item: {type: "sap.m.MessagePopoverItem"},
+							item: {type: "sap.m.MessageItem"},
 							/**
 							 * Refers to the type of messages being shown.
 							 */
@@ -260,7 +272,9 @@ function(
 						}
 					}
 				}
-			}
+			},
+
+			renderer: MessagePopoverRenderer
 		});
 
 
@@ -336,7 +350,7 @@ function(
 			var oPopupControl;
 			this._oOpenByControl = null;
 
-			this._oResourceBundle = sap.ui.getCore().getLibraryResourceBundle("sap.m");
+			this._oResourceBundle = Core.getLibraryResourceBundle("sap.m");
 
 			this._oMessageView = this._initMessageView();
 
@@ -368,12 +382,26 @@ function(
 				modal: false,
 				afterOpen: function (oEvent) {
 					that.fireAfterOpen({openBy: oEvent.getParameter("openBy")});
+
+					// ensure that the focus is in the correct place
+					that.getInitiallyExpanded() && that._oMessageView._restoreFocus();
 				},
 				afterClose: function (oEvent) {
-					that._oMessageView._navContainer.backToTop();
+					// remove and add back all pages instead of calling backToTop as it will trigger animation
+					// if the Popover is open right after the close, animation is not finished and rendering is broken
+					that._oMessageView._navContainer.removeAllPages().forEach(function(oPage) {
+						that._oMessageView._navContainer.addPage(oPage);
+					});
+
 					that.fireAfterClose({openBy: oEvent.getParameter("openBy")});
 				},
 				beforeOpen: function (oEvent) {
+					var aItems = that.getItems();
+
+					if (!that.getBindingInfo("items") && !aItems.length) {
+						that._bindToMessageModel();
+					}
+
 					that.fireBeforeOpen({openBy: oEvent.getParameter("openBy")});
 				},
 				beforeClose: function (oEvent) {
@@ -409,10 +437,31 @@ function(
 			this._observeItems();
 		};
 
+		MessagePopover.prototype._bindToMessageModel = function() {
+			var that = this;
+
+			this.setModel(Core.getMessageManager().getMessageModel(), "message");
+
+			this._oMessageItemTemplate = new MessageItem({
+				type: "{message>type}",
+				title: "{message>message}",
+				description: "{message>description}",
+				longtextUrl: "{message>longtextUrl}"
+			});
+
+			this.bindAggregation("items",
+				{
+					path: "message>/",
+					template: that._oMessageItemTemplate
+				}
+			);
+		};
+
 		MessagePopover.prototype._observeItems = function () {
 			var oItemsObserver = new ManagedObjectObserver(function(oChange) {
 				var sMutation = oChange.mutation;
 				var oItem = oChange.child;
+
 
 				switch (sMutation) {
 
@@ -428,7 +477,7 @@ function(
 				}
 			}.bind(this));
 
-			oItemsObserver.observe(this, {
+			oItemsObserver.observe(this._oMessageView, {
 				aggregations: ["items"]
 			});
 		};
@@ -446,37 +495,6 @@ function(
 		 * @private
 		 */
 		MessagePopover.prototype.onBeforeRenderingPopover = function () {
-			// If there is no item's binding given - it should happen automatically in the MessageView
-			// However for backwards compatibility we need to have the same binding on the MessagePopover
-			// TODO: Decide what to do in this case
-			/*if (!this.getBinding("items") && this._oMessageView.getBinding("items")) {
-				this.bindAggregation("items", this._oMessageView.getBindingInfo("items"));
-			}*/
-
-			// Update MV only if 'items' aggregation is changed
-			if (this._oMessageView && this._bItemsChanged) {
-				var items = this.getItems();
-				var that = this;
-
-				this._oMessageView.destroyItems();
-
-				items.forEach(function (item) {
-					// we need to know if the MessagePopover's item was changed so to
-					// update the MessageView's items as well
-					item._updateProperties(function () {
-						that._bItemsChanged = true;
-					});
-
-					// we need to clone the item along with its bindings and aggregations
-					this._oMessageView.addItem(item.clone("", "", {
-						cloneChildren: true,
-						cloneBinding: true
-					}));
-				}, this);
-
-				this._bItemsChanged = false;
-			}
-
 			this._setInitialFocus();
 
 			// If for some reason the control that opened the popover
@@ -534,7 +552,6 @@ function(
 		 * @param {sap.ui.core.Control} oControl Control which opens the MessagePopover
 		 * @returns {this} Reference to the 'this' for chaining purposes
 		 * @public
-		 * @ui5-metamodel
 		 */
 		MessagePopover.prototype.openBy = function (oControl) {
 			var oResponsivePopoverControl = this._oPopover.getAggregation("_popup"),
@@ -754,6 +771,11 @@ function(
 				this._oMessageView.setProperty("groupItems", this.getGroupItems(), false);
 			}
 		};
+
+		MessagePopover.prototype._getMessageView = function () {
+			return this._oMessageView;
+		};
+
 
 		/*
 		 * =========================================

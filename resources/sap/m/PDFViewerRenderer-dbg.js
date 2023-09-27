@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -46,11 +46,19 @@ sap.ui.define(['sap/ui/Device', "sap/base/Log", "sap/base/security/URLListValida
 				return bIsEnabled;
 			}
 
-			var aMimeTypes = navigator.mimeTypes;
-			bIsEnabled = aAllowedMimeTypes.some(function (sAllowedMimeType) {
-				var oMimeTypeItem = aMimeTypes.namedItem(sAllowedMimeType);
-				return oMimeTypeItem !== null;
-			});
+			if (typeof navigator.pdfViewerEnabled !== "undefined") {
+				if (navigator.pdfViewerEnabled || /HeadlessChrome/.test(window.navigator.userAgent)) {
+					return bIsEnabled;
+				} else {
+					bIsEnabled = false;
+				}
+			} else {
+				var aMimeTypes = navigator.mimeTypes;
+				bIsEnabled = aAllowedMimeTypes.some(function (sAllowedMimeType) {
+					var oMimeTypeItem = aMimeTypes.namedItem(sAllowedMimeType);
+					return oMimeTypeItem !== null;
+				});
+			}
 
 			return bIsEnabled;
 		};
@@ -76,7 +84,14 @@ sap.ui.define(['sap/ui/Device', "sap/base/Log", "sap/base/security/URLListValida
 				oRm.renderControl(oControl._objectsRegister.getOverflowToolbarControl());
 			}
 
-			if (oControl._isEmbeddedModeAllowed()) {
+			/**
+			 * if displayType is not link and pdfPlugin is not enabled .. render error content.
+			 * case: if "Always download pdf's" option is enabled in browser setting.. in that
+			 * case display error content (to retain control behaviour)
+			 */
+			if (!oControl._isDisplayTypeLink() && !this._isPdfPluginEnabled() && Device.system.desktop) {
+				this.renderErrorContent(oRm, oControl);
+			} else if (oControl._isEmbeddedModeAllowed() && this._isPdfPluginEnabled()) {
 				this.renderPdfContent(oRm, oControl);
 			}
 
@@ -90,7 +105,7 @@ sap.ui.define(['sap/ui/Device', "sap/base/Log", "sap/base/security/URLListValida
 
 		PDFViewerRenderer.renderPdfContent = function (oRm, oControl) {
 
-			if (oControl._shouldRenderPdfContent()) {
+			if (oControl._shouldRenderPdfContent() && !(/HeadlessChrome/.test(window.navigator.userAgent))) {
 				oRm.openStart("iframe", oControl.getId() + "-iframe");
 
 				var sParametrizedSource = oControl.getSource();
@@ -113,6 +128,7 @@ sap.ui.define(['sap/ui/Device', "sap/base/Log", "sap/base/security/URLListValida
 
 				oRm.class("sapMPDFViewerContent");
 				oRm.class("sapMPDFViewerLoading");
+				oRm.attr("aria-label", oControl._getLibraryResourceBundle().getText("PDF_VIEWER_CONTENT_ACCESSIBILITY_LABEL"));
 				if (shouldShowToolbar(oControl)) {
 					oRm.class("sapMPDFViewerReducedContent");
 				}
@@ -120,10 +136,6 @@ sap.ui.define(['sap/ui/Device', "sap/base/Log", "sap/base/security/URLListValida
 				oRm.close("iframe");
 			} else {
 				this.renderErrorContent(oRm, oControl);
-				if (!PDFViewerRenderer._isPdfPluginEnabled()) {
-					Log.warning("The PDF plug-in is not available on this device.");
-					oControl.fireEvent("error", {}, true);
-				}
 			}
 		};
 
@@ -139,6 +151,11 @@ sap.ui.define(['sap/ui/Device', "sap/base/Log", "sap/base/security/URLListValida
 			oRm.openEnd();
 			oRm.renderControl(oErrorContent);
 			oRm.close("div");
+
+			if (!PDFViewerRenderer._isPdfPluginEnabled()) {
+				Log.warning("Either Inline viewing of pdf is disabled or pdf plug-in is unavailable on this device.");
+				oControl.fireEvent("error", {}, true);
+			}
 		};
 
 		return PDFViewerRenderer;

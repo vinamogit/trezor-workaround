@@ -1,21 +1,21 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides control sap.ui.layout.form.FormLayout.
 sap.ui.define([
 	'sap/ui/core/Control',
+	'sap/ui/core/Element',
 	'sap/ui/layout/library',
 	'./FormLayoutRenderer',
 	'sap/ui/core/theming/Parameters',
 	'sap/ui/thirdparty/jquery',
+	"sap/ui/core/Configuration",
 	// jQuery custom selectors ":sapFocusable"
-	'sap/ui/dom/jquery/Selectors',
-	// jQuery Plugin "control"
-	'sap/ui/dom/jquery/control'
-], function(Control, library, FormLayoutRenderer, Parameters, jQuery) {
+	'sap/ui/dom/jquery/Selectors'
+], function(Control, Element, library, FormLayoutRenderer, Parameters, jQuery, Configuration) {
 	"use strict";
 
 	// shortcut for sap.ui.layout.BackgroundDesign
@@ -36,28 +36,31 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.16.0
 	 * @alias sap.ui.layout.form.FormLayout
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
-	var FormLayout = Control.extend("sap.ui.layout.form.FormLayout", /** @lends sap.ui.layout.form.FormLayout.prototype */ { metadata : {
+	var FormLayout = Control.extend("sap.ui.layout.form.FormLayout", /** @lends sap.ui.layout.form.FormLayout.prototype */ {
+		metadata : {
 
-		library : "sap.ui.layout",
-		properties : {
-			/**
-			 * Specifies the background color of the <code>Form</code> content.
-			 *
-			 * <b>Note:</b> The visualization of the different options depends on the theme used.
-			 *
-			 * @since 1.36.0
-			 */
-			backgroundDesign : {type : "sap.ui.layout.BackgroundDesign", group : "Appearance", defaultValue : BackgroundDesign.Translucent}
-		}
-	}});
+			library : "sap.ui.layout",
+			properties : {
+				/**
+				 * Specifies the background color of the <code>Form</code> content.
+				 *
+				 * <b>Note:</b> The visualization of the different options depends on the theme used.
+				 *
+				 * @since 1.36.0
+				 */
+				backgroundDesign : {type : "sap.ui.layout.BackgroundDesign", group : "Appearance", defaultValue : BackgroundDesign.Translucent}
+			}
+		},
+
+		renderer: FormLayoutRenderer
+	});
 
 	/* eslint-disable no-lonely-if */
 
@@ -81,10 +84,14 @@ sap.ui.define([
 			jQuery(oControl.getFocusDomRef()).data("sap.InNavArea", true);
 		}
 
-		// In the visual designed layouts, the controls should have the size of the Form cells to align
-		// -> The width must be set to 100% (if no other width set)
-		if (oControl.getWidth && ( !oControl.getWidth() || oControl.getWidth() == "auto" ) &&
+		if (this.renderControlsForSemanticElement() && oFormElement.isA("sap.ui.layout.form.SemanticFormElement") && !oFormElement._getEditable()) {
+			// If in SemanticFormElement in display mode controls are not concatenated but rendered as they are devided by delemitters they need to keep their own size,
+			// but must not be larger than the available space.
+			oControl.$().css("max-width", "100%");
+		} else if (oControl.getWidth && ( !oControl.getWidth() || oControl.getWidth() == "auto" ) &&
 				(!oControl.getFormDoNotAdjustWidth || !oControl.getFormDoNotAdjustWidth())) {
+			// In the visual designed layouts, the controls should have the size of the Form cells to align
+			// -> The width must be set to 100% (if no other width set)
 			oControl.$().css("width", "100%");
 		}
 
@@ -143,7 +150,7 @@ sap.ui.define([
 	FormLayout.prototype.onsapright = function(oEvent){
 
 		if (library.form.FormHelper.bArrowKeySupport) {
-			var bRtl = sap.ui.getCore().getConfiguration().getRTL();
+			var bRtl = Configuration.getRTL();
 
 			if (!bRtl) {
 				this.navigateForward(oEvent);
@@ -157,7 +164,7 @@ sap.ui.define([
 	FormLayout.prototype.onsapleft = function(oEvent){
 
 		if (library.form.FormHelper.bArrowKeySupport) {
-			var bRtl = sap.ui.getCore().getConfiguration().getRTL();
+			var bRtl = Configuration.getRTL();
 
 			if (!bRtl) {
 				this.navigateBack(oEvent);
@@ -422,7 +429,7 @@ sap.ui.define([
 
 	FormLayout.prototype.onBeforeFastNavigationFocus = function(oEvent){
 		if (jQuery.contains(this.getDomRef(), oEvent.source)) {
-			oEvent.srcControl = jQuery(oEvent.source).control(0);
+			oEvent.srcControl = Element.closestTo(oEvent.source);
 			if (oEvent.forward) {
 				this.onsapskipforward(oEvent);
 			} else {
@@ -895,7 +902,7 @@ sap.ui.define([
 	 * As Elements must not have a DOM reference it is not sure if one exists
 	 * In this basic <code>FormLayout</code> each <code>FormContainer</code> has its own DOM.
 	 * @param {sap.ui.layout.form.FormContainer} oContainer <code>FormContainer</code>
-	 * @return {Element} The Element's DOM representation or null
+	 * @return {Element|null} The Element's DOM representation or null
 	 * @private
 	 */
 	FormLayout.prototype.getContainerRenderedDomRef = function(oContainer) {
@@ -926,34 +933,51 @@ sap.ui.define([
 	};
 
 	/**
-	 * In <code>sap.ui.layout.form.SemanticFormElement</> delimiters are rendered.
-	 * They should use only a small space. So <code>Layout</code> dependent <code>LayoutData</code>
+	 * In {@link sap.ui.layout.SemanticFormElement SemanticFormElement}, delimiters are rendered.
+	 * They should use only a small space. So <code>Layout</code>-dependent <code>LayoutData</code>
 	 * are needed.
 	 *
-	 * This function need to be implemented by the specific <code>Layout</code>.
+	 * This function needs to be implemented by the specific <code>Layout</code>.
 	 *
 	 * @return {sap.ui.core.LayoutData | Promise} LayoutData or promise retuning LayoutData
-	 * @private
+	 * @protected
 	 * @since: 1.86.0
 	 */
 	FormLayout.prototype.getLayoutDataForDelimiter = function() {
 	};
 
 	/**
-	 * In <code>sap.ui.layout.form.SemanticFormElement</> delimiters are rendered.
+	 * In {@link sap.ui.layout.SemanticFormElement SemanticFormElement}, delimiters are rendered.
 	 * The fields should be rendered per default in a way, the field and the corresponding delimiter filling one row in
 	 * phone mode. In desktop mode they should all be in one row.
 	 *
-	 * This function need to be implemented by the specific <code>Layout</code>.
+	 * This function needs to be implemented by the specific <code>Layout</code>.
 	 *
 	 * @param {int} iFields Number of field in the <code>SemanticFormElement</code>
 	 * @param {int} iIndex Index of field in the <code>SemanticFormElement</code>
 	 * @param {sap.ui.core.LayoutData} [oLayoutData] existing <code>LayoutData</code> that might be just changed
 	 * @return {sap.ui.core.LayoutData | Promise} LayoutData or promise retuning LayoutData
-	 * @private
+	 * @protected
 	 * @since: 1.86.0
 	 */
 	FormLayout.prototype.getLayoutDataForSemanticField = function(iFields, iIndex, oLayoutData) {
+	};
+
+	/**
+	 * For {@link sap.ui.layout.SemanticFormElement SemanticFormElement}, all text-based controls should be concatenated in display mode.
+	 * If the <code>Layout</code> supports rendering of single controls, they are rendered divided by delimiters.
+	 * If the <code>Layout</code> doesn't support this, one concatenated text is rendered. Here only text is supported, no links or other special rendering.
+	 *
+	 * This function needs to be implemented by the specific <code>Layout</code>.
+	 *
+	 * @return {boolean} <code>true</code> if layout allows to render single controls for {@link sap.ui.layout.SemanticFormElement SemanticFormElement}
+	 * @protected
+	 * @since: 1.117.0
+	 */
+	FormLayout.prototype.renderControlsForSemanticElement = function() {
+
+		return false;
+
 	};
 
 	/**

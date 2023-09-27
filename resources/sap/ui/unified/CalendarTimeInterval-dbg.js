@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -21,14 +21,12 @@ sap.ui.define([
 	'sap/ui/core/format/DateFormat',
 	'sap/ui/Device',
 	'sap/ui/core/Locale',
-	'sap/ui/core/library',
 	"./CalendarTimeIntervalRenderer",
 	"sap/ui/dom/containsOrEquals",
 	"sap/base/util/deepEqual",
-	"sap/ui/core/Popup",
 	"sap/base/Log",
-	"sap/ui/thirdparty/jquery",
 	"sap/ui/unified/DateRange",
+	"sap/ui/core/date/UI5Date",
 	"sap/ui/unified/Calendar"
 ], function(
 	Popover,
@@ -46,14 +44,12 @@ sap.ui.define([
 	DateFormat,
 	Device,
 	Locale,
-	coreLibrary,
 	CalendarTimeIntervalRenderer,
 	containsOrEquals,
 	deepEqual,
-	Popup,
 	Log,
-	jQuery,
 	DateRange,
+    UI5Date,
 	Calendar
 ) {
 	"use strict";
@@ -72,13 +68,12 @@ sap.ui.define([
 	 * @class
 	 * Calendar with granularity of time items displayed in one line.
 	 * @extends sap.ui.core.Control
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.32.0
 	 * @alias sap.ui.unified.CalendarTimeInterval
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var CalendarTimeInterval = Control.extend("sap.ui.unified.CalendarTimeInterval", /** @lends sap.ui.unified.CalendarTimeInterval.prototype */ { metadata : {
 
@@ -91,7 +86,7 @@ sap.ui.define([
 			width : {type : "sap.ui.core.CSSSize", group : "Dimension", defaultValue : null},
 
 			/**
-			 * Start date of the Interval as JavaScript Date object.
+			 * Start date of the Interval as UI5Date or JavaScript Date object.
 			 * The time interval corresponding to this Date and <code>items</code> and <code>intervalMinutes</code>
 			 * will be the first time in the displayed row.
 			 */
@@ -134,7 +129,7 @@ sap.ui.define([
 			pickerPopup : {type : "boolean", group : "Appearance", defaultValue : false},
 
 			/**
-			 * Minimum date that can be shown and selected in the Calendar. This must be a JavaScript date object.
+			 * Minimum date that can be shown and selected in the Calendar. This must be a UI5Date or JavaScript Date object.
 			 *
 			 * <b>Note:</b> If the <code>minDate</code> is set to be after the <code>maxDate</code>,
 			 * the <code>maxDate</code> is set to the end of the month of the <code>minDate</code>.
@@ -143,7 +138,7 @@ sap.ui.define([
 			minDate : {type : "object", group : "Misc", defaultValue : null},
 
 			/**
-			 * Maximum date that can be shown and selected in the Calendar. This must be a JavaScript date object.
+			 * Maximum date that can be shown and selected in the Calendar. This must be a UI5Date or JavaScript Date object.
 			 *
 			 * <b>Note:</b> If the <code>maxDate</code> is set to be before the <code>minDate</code>,
 			 * the <code>minDate</code> is set to the begin of the month of the <code>maxDate</code>.
@@ -215,7 +210,7 @@ sap.ui.define([
 			 */
 			startDateChange : {}
 		}
-	}});
+	}, renderer: CalendarTimeIntervalRenderer});
 
 	/*
 	 * There are different modes (stored in this._iMode)
@@ -242,9 +237,9 @@ sap.ui.define([
 
 		this.data("sap-ui-fastnavgroup", "true", true); // Define group for F6 handling
 
-		this._oMinDate = new UniversalDate(new Date(Date.UTC(1, 0, 1)));
+		this._oMinDate = new UniversalDate(UI5Date.getInstance(Date.UTC(1, 0, 1)));
 		this._oMinDate.getJSDate().setUTCFullYear(1); // otherwise year 1 will be converted to year 1901
-		this._oMaxDate = new UniversalDate(new Date(Date.UTC(9999, 11, 31, 23, 59, 59)));
+		this._oMaxDate = new UniversalDate(UI5Date.getInstance(Date.UTC(9999, 11, 31, 23, 59, 59)));
 
 		this._initializeHeader();
 
@@ -261,10 +256,17 @@ sap.ui.define([
 	};
 
 	CalendarTimeInterval.prototype._initializeHeader = function() {
-		var oHeader = new Header(this.getId() + "--Head");
+		var oHeader = new Header(this.getId() + "--Head"),
+			oResourceBundle = Core.getLibraryResourceBundle("sap.m");
 		oHeader.attachEvent("pressPrevious", this._handlePrevious, this);
 		oHeader.attachEvent("pressNext", this._handleNext, this);
 		this.setAggregation("header", oHeader);
+
+		if (oHeader) {
+			oHeader.setAriaLabelButton0(oResourceBundle.getText("DATETIMEPICKER_DATE"));
+			oHeader.setAriaLabelButton1(oResourceBundle.getText("MOBISCROLL_MONTH"));
+			oHeader.setAriaLabelButton2(oResourceBundle.getText("MOBISCROLL_YEAR"));
+		}
 	};
 
 	CalendarTimeInterval.prototype._initializeTimesRow = function() {
@@ -394,7 +396,6 @@ sap.ui.define([
 
 		if (!this._oCalendar) {
 			oCalendar = new Calendar(this.getId() + "--Cal", {});
-			oCalendar.setPopupMode(true);
 			oCalendar.attachEvent("select", _handleCalendarDateSelect, this);
 			oCalendar.attachEvent("cancel", function (oEvent) {
 				this._oPopup.close();
@@ -420,7 +421,7 @@ sap.ui.define([
 
 	/**
 	 * Getter for monthPicker aggregation.
-	 * @return {object} The monthPicker control instance
+	 * @returns {sap.ui.unified.calendar.MonthPicker} The monthPicker control instance
 	 * @private
 	 */
 	CalendarTimeInterval.prototype._getMonthPicker = function () {
@@ -429,13 +430,20 @@ sap.ui.define([
 
 	/**
 	 * Getter for yearPicker aggregation.
-	 * @return {object} The yearPicker control instance
+	 * @returns {sap.ui.unified.calendar.YearPicker} The yearPicker control instance
 	 * @private
 	 */
 	CalendarTimeInterval.prototype._getYearPicker = function () {
 		return this.getAggregation("yearPicker");
 	};
 
+	/**
+	 * Sets start date for the interval.
+	 *
+	 * @param {Date|module:sap/ui/core/date/UI5Date} oStartDate A date instance
+	 * @returns {this} Reference to <code>this</code> for method chaining
+	 * @public
+	 */
 	CalendarTimeInterval.prototype.setStartDate = function(oStartDate){
 
 		CalendarUtils._checkJSDateObject(oStartDate);
@@ -450,13 +458,13 @@ sap.ui.define([
 		var oMinDate = this.getMinDate();
 		if (oMinDate && oStartDate.getTime() < oMinDate.getTime()) {
 			Log.warning("startDate < minDate -> minDate as startDate set", this);
-			oStartDate = new Date(oMinDate);
+			oStartDate = UI5Date.getInstance(oMinDate);
 		}
 
 		var oMaxDate = this.getMaxDate();
 		if (oMaxDate && oStartDate.getTime() > oMaxDate.getTime()) {
 			Log.warning("startDate > maxDate -> maxDate as startDate set", this);
-			oStartDate = new Date(oMaxDate);
+			oStartDate = UI5Date.getInstance(oMaxDate);
 		}
 
 		this.setProperty("startDate", oStartDate);
@@ -541,7 +549,7 @@ sap.ui.define([
 	 * Sets the locale for the <code>CalendarTimeInterval</code>.
 	 * Only for internal use
 	 * @param {string} sLocale  New value for <code>locale</code>
-	 * @returns {sap.ui.unified.Calendar} <code>this</code> to allow method chaining
+	 * @returns {this} Reference to <code>this</code> for method chaining
 	 * @private
 	 */
 	CalendarTimeInterval.prototype.setLocale = function(sLocale){
@@ -559,7 +567,7 @@ sap.ui.define([
 	/**
 	 * Gets the used locale for the <code>CalendarTimeInterval</code>
 	 * Only for internal use
-	 * @return {string} sLocale
+	 * @returns {string} sLocale
 	 * @private
 	 */
 	CalendarTimeInterval.prototype.getLocale = function(){
@@ -595,10 +603,9 @@ sap.ui.define([
 	/**
 	 * Sets the focused item of the <code>CalendarTimeInterval</code>.
 	 *
-	 * @param {object} oDate JavaScript date object for focused item.
-	 * @returns {sap.ui.unified.Calendar} <code>this</code> to allow method chaining
+	 * @param {Date|module:sap/ui/core/date/UI5Date} oDate date instance for focused item
+	 * @returns {this} Reference to <code>this</code> for method chaining
 	 * @public
-	 * @ui5-metamodel This method also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	CalendarTimeInterval.prototype.focusDate = function(oDate){
 
@@ -623,10 +630,9 @@ sap.ui.define([
 	/**
 	 * Displays an item in the <code>CalendarTimeInterval</code> but doesn't set the focus.
 	 *
-	 * @param {object} oDate JavaScript date object for displayed item.
-	 * @returns {sap.ui.unified.Calendar} <code>this</code> to allow method chaining
+	 * @param {Date|module:sap/ui/core/date/UI5Date} oDate date instance for displayed item.
+	 * @returns {this} Reference to <code>this</code> for method chaining
 	 * @public
-	 * @ui5-metamodel This method also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	CalendarTimeInterval.prototype.displayDate = function(oDate){
 
@@ -774,6 +780,13 @@ sap.ui.define([
 
 	};
 
+	/**
+	 * Set minimum date that can be shown and selected in the Calendar.
+	 *
+	 * @param {Date} [oDate] Min date as a JS Date object
+	 * @returns {this} Reference to <code>this</code> for method chaining
+	 * @public
+	 */
 	CalendarTimeInterval.prototype.setMinDate = function(oDate){
 		var oTimesRow,
 			iYear,
@@ -833,6 +846,13 @@ sap.ui.define([
 
 	};
 
+	/**
+	 * Set maximum date that can be shown and selected in the Calendar.
+	 *
+	 * @param {Date} [oDate] Max date as a JS Date object
+	 * @returns {this} Reference to <code>this</code> for method chaining
+	 * @public
+	 */
 	CalendarTimeInterval.prototype.setMaxDate = function(oDate){
 		var oTimesRow,
 			iYear,
@@ -941,183 +961,6 @@ sap.ui.define([
 				// no default
 			}
 		}
-	};
-
-	CalendarTimeInterval.prototype.onsaptabnext = function(oEvent){
-		var oHeader = this.getAggregation("header"),
-			oMonthPicker, oYearPicker, oTimesRow;
-
-		// if tab was pressed on a day it should jump to the month and then to the year button
-
-		if (containsOrEquals(this.getDomRef("content"), oEvent.target)) {
-			if (this.getPickerPopup() && oHeader.getDomRef("B1")){
-				oHeader.getDomRef("B1").focus();
-			} else if (!this.getPickerPopup() && oHeader.getDomRef("B0")){
-				oHeader.getDomRef("B0").focus();
-			}
-
-			if (!this._bPoupupMode) {
-				// remove Tabindex from day, month, year - to break cycle
-				oTimesRow = this.getAggregation("timesRow");
-
-				jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-				if (!this.getPickerPopup()) {
-					oMonthPicker = this._getMonthPicker();
-					oYearPicker = this._getYearPicker();
-					if (oMonthPicker.getDomRef()) {
-						jQuery(oMonthPicker._oItemNavigation.getItemDomRefs()[oMonthPicker._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-					}
-					if (oYearPicker.getDomRef()) {
-						jQuery(oYearPicker._oItemNavigation.getItemDomRefs()[oYearPicker._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-					}
-				}
-			}
-
-			oEvent.preventDefault();
-
-		} else if (oEvent.target.id == oHeader.getId() + "-B0") {
-			if (oHeader.getDomRef("B1")){
-				oHeader.getDomRef("B1").focus();
-			}
-			oEvent.preventDefault();
-		} else if (!this.getPickerPopup() && (oEvent.target.id == oHeader.getId() + "-B1")) {
-			if (oHeader.getDomRef("B2")){
-				oHeader.getDomRef("B2").focus();
-			}
-			oEvent.preventDefault();
-		}
-
-	};
-
-	CalendarTimeInterval.prototype.onsaptabprevious = function(oEvent){
-
-		var oHeader = this.getAggregation("header"),
-			oMonthPicker, oYearPicker, oTimesRow;
-
-		if (containsOrEquals(this.getDomRef("content"), oEvent.target)) {
-			// tab from day or year -> go to header
-
-			if (this._bPoupupMode) {
-				if (oHeader.getDomRef("B2")){
-					oHeader.getDomRef("B2").focus();
-				}
-				oEvent.preventDefault();
-			}
-		} else if (oEvent.target.id == oHeader.getId() + "-B0") {
-			// focus day or year
-			oTimesRow = this.getAggregation("timesRow");
-
-			switch (this._iMode) {
-			case 0: // day picker
-				oTimesRow._oItemNavigation.focusItem(oTimesRow._oItemNavigation.getFocusedIndex());
-				break;
-
-			case 2: // month picker
-				if (!this.getPickerPopup()) {
-					oMonthPicker = this._getMonthPicker();
-					oMonthPicker._oItemNavigation.focusItem(oMonthPicker._oItemNavigation.getFocusedIndex());
-				}
-				break;
-
-			case 3: // year picker
-				if (!this.getPickerPopup()) {
-					oYearPicker = this._getYearPicker();
-					oYearPicker._oItemNavigation.focusItem(oYearPicker._oItemNavigation.getFocusedIndex());
-				}
-				break;
-				// no default
-			}
-
-			oEvent.preventDefault();
-		} else if (oEvent.target.id == oHeader.getId() + "-B2") {
-			if (oHeader.getDomRef("B1")){
-				oHeader.getDomRef("B1").focus();
-			}
-
-			oEvent.preventDefault();
-		} else if (oEvent.target.id == oHeader.getId() + "-B1") {
-			if (!this.getPickerPopup()) {
-				if (oHeader.getDomRef("B0")){
-					oHeader.getDomRef("B0").focus();
-				}
-			} else {
-				oTimesRow = this.getAggregation("timesRow");
-				oTimesRow._oItemNavigation.focusItem(oTimesRow._oItemNavigation.getFocusedIndex());
-			}
-			oEvent.preventDefault();
-		}
-	};
-
-	CalendarTimeInterval.prototype.onfocusin = function(oEvent){
-
-		if (oEvent.target.id == this.getId() + "-end") {
-			// focus via tab+shift (otherwise not possible to go to this element)
-			var oHeader = this.getAggregation("header"),
-				oTimesRow, oMonthPicker, oYearPicker;
-
-			if (this.getPickerPopup() && oHeader.getDomRef("B1")) {
-				oHeader.getDomRef("B1").focus();
-			} else if (!this.getPickerPopup() && oHeader.getDomRef("B2")){
-				oHeader.getDomRef("B2").focus();
-			}
-
-			if (!this._bPoupupMode) {
-				// remove Tabindex from day, month, year - to break cycle
-				oTimesRow = this.getAggregation("timesRow");
-				jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-
-				if (!this.getPickerPopup()) {
-					oMonthPicker = this._getMonthPicker();
-					oYearPicker = this._getYearPicker();
-					if (oMonthPicker.getDomRef()) {
-						jQuery(oMonthPicker._oItemNavigation.getItemDomRefs()[oMonthPicker._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-					}
-					if (oYearPicker.getDomRef()) {
-						jQuery(oYearPicker._oItemNavigation.getItemDomRefs()[oYearPicker._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-					}
-				}
-			}
-		}
-
-		// remove tabindex of dummy element if focus is inside calendar
-		this.$("end").attr("tabindex", "-1");
-
-	};
-
-	CalendarTimeInterval.prototype.onsapfocusleave = function(oEvent){
-
-		if (!oEvent.relatedControlId || !containsOrEquals(this.getDomRef(), sap.ui.getCore().byId(oEvent.relatedControlId).getFocusDomRef())) {
-			// put dummy element back to tab-chain
-			this.$("end").attr("tabindex", "0");
-
-			if (!this._bPoupupMode) {
-				// restore Tabindex from day and year
-				var oTimesRow, oMonthPicker, oYearPicker;
-
-				switch (this._iMode) {
-				case 0: // time picker
-					oTimesRow = this.getAggregation("timesRow");
-					jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "0");
-					break;
-
-				case 2: // month picker
-					if (!this.getPickerPopup()) {
-						oMonthPicker = this._getMonthPicker();
-						jQuery(oMonthPicker._oItemNavigation.getItemDomRefs()[oMonthPicker._oItemNavigation.getFocusedIndex()]).attr("tabindex", "0");
-					}
-					break;
-
-				case 3: // year picker
-					if (!this.getPickerPopup()) {
-						oYearPicker = this._getYearPicker();
-						jQuery(oYearPicker._oItemNavigation.getItemDomRefs()[oYearPicker._oItemNavigation.getFocusedIndex()]).attr("tabindex", "0");
-					}
-					break;
-					// no default
-				}
-			}
-		}
-
 	};
 
 	CalendarTimeInterval.prototype.setProperty = function () {
@@ -1362,7 +1205,7 @@ sap.ui.define([
 			this._oFocusedDate = CalendarUtils._createUniversalUTCDate(aSelectedDates[0].getStartDate(), undefined, true);
 		} else {
 			// use current date
-			var oNewDate = new Date();
+			var oNewDate = UI5Date.getInstance();
 			this._oFocusedDate = CalendarUtils._createUniversalUTCDate(oNewDate, undefined, true);
 		}
 
@@ -1404,10 +1247,6 @@ sap.ui.define([
 		this._hideOverlay();
 		if (!bSkipFocus) {
 			_renderTimesRow.call(this); // to focus date
-
-			// restore tabindex because if date not changed in _renderTimesRow only the focused date is updated
-			var oTimesRow = this.getAggregation("timesRow");
-			jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "0");
 		}
 
 		this._getCalendar()._closePickers();
@@ -1417,7 +1256,7 @@ sap.ui.define([
 	 * Shows an embedded day Picker.
 	 * This function assumes there is a "datesRow" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _showDayPicker(){
@@ -1448,13 +1287,6 @@ sap.ui.define([
 		// set start date and focus date
 		_setDateInDatesRow.call(this, oDate);
 
-		if (this._iMode == 0) {
-			// remove tabindex from item
-			var oTimesRow = this.getAggregation("timesRow");
-
-			jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-		}
-
 		this._iMode = 1;
 
 	}
@@ -1463,7 +1295,7 @@ sap.ui.define([
 	 * Shows an embedded month Picker.
 	 * This function assumes there is a "monthPicker" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _showMonthPicker(){
@@ -1479,13 +1311,6 @@ sap.ui.define([
 		oMonthPicker.setMonth(oDate.getUTCMonth());
 		_setDisabledMonths.call(this, oDate.getUTCFullYear(), oMonthPicker);
 
-		if (this._iMode == 0) {
-			// remove tabindex from item
-			var oTimesRow = this.getAggregation("timesRow");
-
-			jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-		}
-
 		this._iMode = 2;
 
 		_togglePrevNext.call(this);
@@ -1496,7 +1321,7 @@ sap.ui.define([
 	 * Shows an embedded year Picker.
 	 * This function assumes there is a "yearPicker" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _showYearPicker(){
@@ -1509,13 +1334,6 @@ sap.ui.define([
 		this._showOverlay();
 
 		oYearPicker.setDate(oDate.getJSDate());
-
-		if (this._iMode == 0) {
-			// remove tabindex from item
-			var oTimesRow = this.getAggregation("timesRow");
-
-			jQuery(oTimesRow._oItemNavigation.getItemDomRefs()[oTimesRow._oItemNavigation.getFocusedIndex()]).attr("tabindex", "-1");
-		}
 
 		_togglePrevNexYearPicker.call(this);
 
@@ -1535,7 +1353,7 @@ sap.ui.define([
 	 * This function assumes there is a "monthPicker" aggregation unless the bSkipMonthCheck flag is false.
 	 * So callers must take care.
 	 * @param {boolean} bSkipMonthCheck if month picker should be examined or not
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _togglePrevNext(bSkipMonthCheck){
@@ -1639,7 +1457,7 @@ sap.ui.define([
 	 * Disable / Enable the next and previous button in the Header.
 	 * This function assumes there is a "yearPicker" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _togglePrevNexYearPicker(){
@@ -1876,7 +1694,7 @@ sap.ui.define([
 	 * Handles day focus from the embedded day Picker.
 	 * This function assumes there is a "datesRow" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _handleDateFocus(oEvent){
@@ -1899,7 +1717,7 @@ sap.ui.define([
 	 * Handles user selection of a month from the Month Picker.
 	 * This function assumes there is a "monthPicker" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _handleSelectMonth(oEvent){
@@ -1927,7 +1745,7 @@ sap.ui.define([
 	 * Handles the user year selection.
 	 * This function assumes there is a "yearPicker" aggregation.
 	 * So callers must take care.
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _handleSelectYear(oEvent){
@@ -1985,7 +1803,7 @@ sap.ui.define([
 	 * This function assumes there is a "datesRow" aggregation.
 	 * So callers must take care.
 	 * @param oDate
-	 * @return {void}
+	 * @returns {void}
 	 * @private
 	 */
 	function _setDateInDatesRow(oDate) {

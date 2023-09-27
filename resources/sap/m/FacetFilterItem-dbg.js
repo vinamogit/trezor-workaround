@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -20,39 +20,43 @@ sap.ui.define(['./ListItemBase', './library', './FacetFilterItemRenderer'],
 	 * @class
 	 * Represents a value for the {@link sap.m.FacetFilterList} control.
 	 * @extends sap.m.ListItemBase
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @alias sap.m.FacetFilterItem
 	 * @see {@link topic:395392f30f2a4c4d80d110d5f923da77 Facet Filter Item}
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
-	var FacetFilterItem = ListItemBase.extend("sap.m.FacetFilterItem", /** @lends sap.m.FacetFilterItem.prototype */ { metadata : {
+	var FacetFilterItem = ListItemBase.extend("sap.m.FacetFilterItem", /** @lends sap.m.FacetFilterItem.prototype */ {
+		metadata : {
 
-		library : "sap.m",
-		properties : {
+			library : "sap.m",
+			properties : {
 
-			/**
-			 * Can be used as input for subsequent actions.
-			 */
-			key : {type : "string", group : "Data", defaultValue : null},
+				/**
+				 * Can be used as input for subsequent actions.
+				 */
+				key : {type : "string", group : "Data", defaultValue : null},
 
-			/**
-			 * Determines the text to be displayed for the item.
-			 */
-			text : {type : "string", group : "Misc", defaultValue : null},
+				/**
+				 * Determines the text to be displayed for the item.
+				 */
+				text : {type : "string", group : "Misc", defaultValue : null},
 
-			/**
-			 * Defines the number of objects that match this item in the target data set.
-			 * @deprecated as of version 1.18.11, replaced by <code>setCounter</code> method
-			 */
-			count : {type : "int", group : "Misc", defaultValue : null, deprecated: true}
-		}
-	}});
+				/**
+				 * Defines the number of objects that match this item in the target data set.
+				 * @deprecated as of version 1.18.11, replaced by <code>setCounter</code> method
+				 */
+				count : {type : "int", group : "Misc", defaultValue : null, deprecated: true}
+			}
+		},
 
-	/*
+		renderer: FacetFilterItemRenderer
+	});
+
+	/**
 	 * Sets count for the FacetFilterList.
+	 * @deprecated as of version 1.18, replaced by <code>setCounter/code>
 	 * @param {int} iCount The counter to be set to
 	 * @returns {this} this for chaining
 	 */
@@ -71,6 +75,9 @@ sap.ui.define(['./ListItemBase', './library', './FacetFilterItemRenderer'],
 	 */
 	FacetFilterItem.prototype.setCounter = function(iCount) {
 
+		/**
+		 * @deprecated As of version 1.18
+		 */
 		this.setProperty("count", iCount);
 		this.setProperty("counter", iCount);
 		return this;

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -14,7 +14,9 @@ sap.ui.define([
 	"sap/ui/core/Locale",
 	"./library",
 	"./Button",
-	'./TimePickerInternalsRenderer'
+	"sap/ui/core/date/UI5Date",
+	"./TimePickerInternalsRenderer",
+	"sap/ui/core/Configuration"
 ],
 	function(
 		coreLibrary,
@@ -26,7 +28,9 @@ sap.ui.define([
 		Locale,
 		library,
 		Button,
-		TimePickerInternalsRenderer
+        UI5Date,
+		TimePickerInternalsRenderer,
+		Configuration
 	) {
 		"use strict";
 
@@ -45,7 +49,7 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @private
@@ -75,7 +79,7 @@ sap.ui.define([
 					 * The <code>displayFormat</code> comes from the browser language settings if not set explicitly.
 					 *
 					 */
-					displayFormat: {name: "displayFormat", type: "string", group: "Appearance"},
+					displayFormat: {type: "string", group: "Appearance"},
 
 					/**
 					 * Sets the minutes clock step. The step must be at least 1
@@ -121,7 +125,9 @@ sap.ui.define([
 					 */
 					_nowButton: { type: "sap.m.Button", multiple: false, visibility: "hidden" }
 				}
-			}
+			},
+
+			renderer: TimePickerInternalsRenderer
 		});
 
 		/**
@@ -130,7 +136,7 @@ sap.ui.define([
 		 * @private
 		 */
 		TimePickerInternals.prototype.init = function () {
-			var oLocale = sap.ui.getCore().getConfiguration().getFormatSettings().getFormatLocale(),
+			var oLocale = Configuration.getFormatSettings().getFormatLocale(),
 				oLocaleData = LocaleData.getInstance(oLocale),
 				aPeriods = oLocaleData.getDayPeriods("abbreviated"),
 				sDefaultDisplayFormat = oLocaleData.getTimePattern("medium");
@@ -327,7 +333,7 @@ sap.ui.define([
 		 */
 		TimePickerInternals.prototype._getLocaleBasedPattern = function (sPlaceholder) {
 			return LocaleData.getInstance(
-				sap.ui.getCore().getConfiguration().getFormatSettings().getFormatLocale()
+				Configuration.getFormatSettings().getFormatLocale()
 			).getTimePattern(sPlaceholder);
 		};
 
@@ -368,7 +374,7 @@ sap.ui.define([
 			}
 
 			if (!sCalendarType) {
-				sCalendarType = sap.ui.getCore().getConfiguration().getCalendarType();
+				sCalendarType = Configuration.getCalendarType();
 			}
 
 			return this._getFormatterInstance(sPattern, bRelative, sCalendarType);
@@ -423,36 +429,6 @@ sap.ui.define([
 			}
 
 			return "";
-		};
-
-		/**
-		 * Returns an array of separators between separate parts of the display format.
-		 * @returns {array} array of separators
-		 * @private
-		 */
-		TimePickerInternals.prototype._getTimeSeparators = function (sDisplayFormat) {
-			var aFormatParts = sap.ui.core.format.DateFormat.getInstance({ pattern: sDisplayFormat }).aFormatArray,
-				aSeparators = [],
-				bPreviousWasEntity,
-				iIndex;
-
-				for (iIndex = 0; iIndex < aFormatParts.length; iIndex++) {
-					if (aFormatParts[iIndex].type !== "text") {
-						if (bPreviousWasEntity) {
-							// there was previous non-separator entity, and this one is the same too, so add empty separator
-							aSeparators.push("");
-						} else {
-							// this is non-separator entity, set the entity flag
-							bPreviousWasEntity = true;
-						}
-					} else {
-						// add separator and clear non-separator entity flag
-						aSeparators.push(aFormatParts[iIndex].value);
-						bPreviousWasEntity = false;
-					}
-				}
-
-				return aSeparators;
 		};
 
 		/**
@@ -529,8 +505,9 @@ sap.ui.define([
 		 *  00:00:00 with displayFormat "mm:HH:ss" -> 00:24:00
 		 *  0:00:00 with displayFormat "H:mm:ss" -> 24:00:00
 		 *  00:0:00 with displayFormat "mm:H:ss" -> 00:24:00
-		 * @param iIndexHH index of the HH in the displayFormat
-		 * @param iIndexH index of the H in the displayFormat
+		 * @param {string} sValue Value to replace the zeroes in
+		 * @param {int} iIndexOfHH index of the HH in the displayFormat
+		 * @param {int} iIndexOfH index of the H in the displayFormat
 		 * @private
 		 */
 		TimePickerInternals._replaceZeroHoursWith24 = function (sValue, iIndexOfHH, iIndexOfH) {
@@ -553,8 +530,9 @@ sap.ui.define([
 		 *  00:24:00 with displayFormat "mm:HH:ss" -> 00:00:00
 		 *  24:00:00 with displayFormat "H:mm:ss" -> 0:00:00
 		 *  00:24:00 with displayFormat "mm:H:ss" -> 00:0:00
-		 * @param iIndexHH index of the HH in the displayFormat
-		 * @param iIndexH index of the H in the displayFormat
+		 * @param {string} sValue Value to replace the 24 with zeroes in
+		 * @param {int} iIndexOfHH index of the HH in the displayFormat
+		 * @param {int} iIndexOfH index of the H in the displayFormat
 		 * @private
 		 */
 		TimePickerInternals._replace24HoursWithZero = function (sValue, iIndexOfHH, iIndexOfH) {
@@ -602,7 +580,7 @@ sap.ui.define([
 					type: ButtonType.Transparent,
 					visible: false,
 					press: function () {
-						this._setTimeValues(new Date());
+						this._setTimeValues(UI5Date.getInstance());
 					}.bind(this)
 				}).addStyleClass("sapMTPNow");
 			}

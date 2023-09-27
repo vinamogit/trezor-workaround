@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -10,9 +10,10 @@ sap.ui.define([
 	'sap/ui/unified/CalendarLegendRenderer',
 	'sap/ui/Device',
 	'sap/ui/unified/library',
-	'sap/ui/core/IconPool',
 	'sap/ui/core/InvisibleText',
-	"sap/base/Log"
+	"sap/ui/core/date/UI5Date",
+	'sap/base/Log',
+	'sap/ui/core/IconPool' // required by RenderManager#icon
 	],
 	function (
 		UniversalDate,
@@ -20,8 +21,8 @@ sap.ui.define([
 		CalendarLegendRenderer,
 		Device,
 		library,
-		IconPool,
 		InvisibleText,
+        UI5Date,
 		Log) {
 		"use strict";
 
@@ -83,7 +84,9 @@ sap.ui.define([
 		}
 
 	//		var rb = sap.ui.getCore().getLibraryResourceBundle("sap.ui.unified");
-		oRm.accessibilityState(oRow/*, mAccProps*/);
+		oRm.accessibilityState(oRow, {
+			role: "row"
+		});
 		oRm.openEnd(); // div element
 
 		this.renderAppointmentsRow(oRm, oRow, aTypes);
@@ -96,6 +99,7 @@ sap.ui.define([
 		var sId = oRow.getId();
 		oRm.openStart("div", sId + "-Apps");
 		oRm.class("sapUiCalendarRowApps");
+		oRm.attr("role", "list");
 		oRm.openEnd();
 
 		this.renderBeforeAppointments(oRm, oRow);
@@ -262,7 +266,7 @@ sap.ui.define([
 		var i;
 		var bShowIntervalHeaders = oRow.getShowIntervalHeaders() && (oRow.getShowEmptyIntervalHeaders() || aIntervalHeaders.length > 0);
 		var iMonth = oRow.getStartDate().getMonth();
-		var iDaysLength = new Date(oRow.getStartDate().getFullYear(), iMonth + 1, 0).getDate();
+		var iDaysLength = UI5Date.getInstance(oRow.getStartDate().getFullYear(), iMonth + 1, 0).getDate();
 
 		oRm.openStart("div", sId);
 		oRm.class("sapUiCalendarRowAppsInt");
@@ -450,7 +454,8 @@ sap.ui.define([
 
 			mAttributes["id"] = sId + "-Icon";
 			mAttributes["title"] = null;
-			mAttributes["role"] = "img";
+			mAttributes["alt"] = null;
+			mAttributes["role"] = "presentation";
 			oRm.icon(sIcon, aClasses, mAttributes);
 		}
 
@@ -508,6 +513,7 @@ sap.ui.define([
 		var sId = oAppointment.getId();
 		var bReducedHeight = oRow._getAppointmentReducedHeight(oAppointmentInfo);
 		var mAccProps = {
+			role: "listitem",
 			labelledby: {value: InvisibleText.getStaticId("sap.ui.unified", "APPOINTMENT") + " " + sId + "-Descr", append: true},
 			selected: null
 		};
@@ -532,7 +538,9 @@ sap.ui.define([
 		oRm.class("sapUiCalendarAppHeight" + iRowCount);
 		if (oAppointment.getSelected()) {
 			oRm.class("sapUiCalendarAppSel");
-			mAccProps["labelledby"].value = mAccProps["labelledby"].value + " " + InvisibleText.getStaticId("sap.ui.unified", "APPOINTMENT_SELECTED");
+			mAccProps["labelledby"].value = InvisibleText.getStaticId("sap.ui.unified", "APPOINTMENT_SELECTED") + " " + mAccProps["labelledby"].value;
+		} else {
+			mAccProps["labelledby"].value = InvisibleText.getStaticId("sap.ui.unified", "APPOINTMENT_UNSELECTED") + " " + mAccProps["labelledby"].value;
 		}
 
 		if (oAppointment.getTentative()) {
@@ -610,7 +618,8 @@ sap.ui.define([
 				var mAttributes = {};
 				mAttributes["id"] = sId + "-Icon";
 				mAttributes["title"] = null;
-				mAttributes["role"] = "img";
+				mAttributes["alt"] = null;
+				mAttributes["role"] = "presentation";
 				oRm.icon(sIcon, aClasses, mAttributes);
 			}
 			oRm.openStart("div");
@@ -673,9 +682,9 @@ sap.ui.define([
 			sId = oRow.getId() + "-AppsInt" + iInterval,
 			i,
 			bShowIntervalHeaders = oRow.getShowIntervalHeaders() && (oRow.getShowEmptyIntervalHeaders() || aIntervalHeaders.length > 0),
-			oRowStartDate = new Date(oRow.getStartDate()),
+			oRowStartDate = UI5Date.getInstance(oRow.getStartDate()),
 			iMonth = oRowStartDate.getMonth(),
-			iDaysLength = new Date(oRowStartDate.getFullYear(), iMonth + 1, 0).getDate(),
+			iDaysLength = UI5Date.getInstance(oRowStartDate.getFullYear(), iMonth + 1, 0).getDate(),
 			sNoAppointments,
 			oPC = oRow._getPlanningCalendar(),
 			// gets a concatenated array with appointments + interval headers, which intersect the visible interval

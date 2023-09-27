@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*eslint-disable max-len */
@@ -46,12 +46,15 @@ sap.ui.define([
 	 *
 	 * @extends sap.ui.model.Type
 	 * @public
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 */
 	var SimpleType = Type.extend("sap.ui.model.SimpleType", /** @lends sap.ui.model.SimpleType.prototype */ {
 
 		constructor : function (oFormatOptions, oConstraints) {
 			Type.apply(this, arguments);
+			// The formatter to convert between the value in internal and model representation, cf. #getModelFormat
+			//   setFormatOptions may be overwritten by subclasses and set an own oInputFormat => must be set before
+			this.oInputFormat = undefined;
 			this.setFormatOptions(oFormatOptions || {});
 			this.setConstraints(oConstraints || {});
 			this.sName = "SimpleType";
@@ -109,7 +112,7 @@ sap.ui.define([
 	 *
 	 * @param {any} vValue
 	 *   The value to be validated
-	 * @returns {void|Promise}
+	 * @returns {void|Promise<undefined>}
 	 *   <code>undefined</code> or a <code>Promise</code> resolving with an undefined value
 	 * @throws {sap.ui.model.ValidateException}
 	 *   If at least one of the type constraints are not met; the message of the exception is
@@ -241,13 +244,17 @@ sap.ui.define([
 	 *   An array of message strings
 	 * @return {string}
 	 *   The combined message text
+	 *
+	 * @private
 	 */
 	SimpleType.prototype.combineMessages = function (aMessages) {
 		if (aMessages.length === 1) {
 			return aMessages[0];
-		} else {
-			return aMessages.join(". ") + ".";
 		}
+
+		return aMessages.map(function (sMessage) {
+			return sMessage.endsWith(".") ? sMessage : sMessage + ".";
+		}).join(" ");
 	};
 
 	return SimpleType;

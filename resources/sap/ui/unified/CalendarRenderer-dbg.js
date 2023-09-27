@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -113,17 +113,6 @@ sap.ui.define([],
 			oRm.text(rb.getText("CALENDAR_CANCEL"));
 			oRm.close("button");
 		}
-
-		// dummy element to catch tabbing in from next element
-		oRm.openStart("div", sId + "-end");
-		oRm.attr("tabindex", "0");
-		oRm.style("position", "absolute");
-		oRm.style("width", "0");
-		oRm.style("height", "0");
-		oRm.style("right", "0");
-		oRm.style("bottom", "0");
-		oRm.openEnd();
-		oRm.close("div");
 
 		this.renderCalContentAndArrowsOverlay(oRm, oCal, sId);
 

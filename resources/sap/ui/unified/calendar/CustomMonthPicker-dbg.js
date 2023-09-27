@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -86,8 +86,9 @@ sap.ui.define([
 			oYearPicker = this._getYearPicker(),
 			oFocusedDate = this._getFocusedDate();
 
-		oFocusedDate.setYear(oYearPicker.getYear());
+		oFocusedDate.setYear(oYearPicker.getDate().getFullYear());
 		oMonthPicker._setYear(oFocusedDate.getYear());
+		oMonthPicker._setDate(oFocusedDate);
 
 		this._focusDate(oFocusedDate, true);
 

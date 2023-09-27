@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*eslint-disable max-len */
@@ -8,7 +8,6 @@
 sap.ui.define(['./PropertyBinding'],
 	function(PropertyBinding) {
 	"use strict";
-
 
 	/**
 	 * Creates a new ClientPropertyBinding.
@@ -65,7 +64,10 @@ sap.ui.define(['./PropertyBinding'],
 	 */
 	ClientPropertyBinding.prototype.setContext = function(oContext) {
 		if (this.oContext != oContext) {
-			sap.ui.getCore().getMessageManager().removeMessages(this.getDataState().getControlMessages(), true);
+			var Messaging = sap.ui.require("sap/ui/core/Messaging");
+			if (Messaging) {
+				Messaging.removeMessages(this.getDataState().getControlMessages(), true);
+			}
 			this.oContext = oContext;
 			if (this.isRelative()) {
 				this.checkUpdate();

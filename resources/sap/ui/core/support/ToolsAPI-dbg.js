@@ -1,30 +1,26 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 sap.ui.define([
-	'sap/ui/core/library',
-	'sap/ui/Global',
-	'sap/ui/core/Core',
-	'sap/ui/core/ElementMetadata',
+	"sap/ui/Global",
+	"sap/ui/core/Configuration",
+	"sap/ui/core/ElementMetadata",
 	"sap/base/util/LoaderExtensions",
 	"sap/base/util/UriParameters",
-	"jquery.sap.global"
+	"sap/ui/thirdparty/jquery"
 ],
 	function(
-		library,
 		Global,
-		Core,
+		Configuration,
 		ElementMetadata,
 		LoaderExtensions,
 		UriParameters,
 		jQuery
 	) {
 		'use strict';
-
-		var configurationInfo = sap.ui.getCore().getConfiguration();
 
 		// ================================================================================
 		// Technical Information
@@ -92,31 +88,26 @@ sap.ui.define([
 					applicationHREF: window.location.href,
 					documentTitle: document.title,
 					documentMode: document.documentMode || '',
-					debugMode: jQuery.sap.debug(),
-					statistics: jQuery.sap.statistics()
+					debugMode: Configuration.getDebug(),
+					statistics: Configuration.getStatisticsEnabled()
 				},
-
 				configurationBootstrap: window['sap-ui-config'] || Object.create(null),
-
 				configurationComputed: {
-					theme: configurationInfo.getTheme(),
-					language: configurationInfo.getLanguage(),
-					formatLocale: configurationInfo.getFormatLocale(),
-					accessibility: configurationInfo.getAccessibility(),
-					animation: configurationInfo.getAnimation(),
-					rtl: configurationInfo.getRTL(),
-					debug: configurationInfo.getDebug(),
-					inspect: configurationInfo.getInspect(),
-					originInfo: configurationInfo.getOriginInfo(),
-					noDuplicateIds: configurationInfo.getNoDuplicateIds()
+					theme: Configuration.getTheme(),
+					language: Configuration.getLanguage(),
+					formatLocale: Configuration.getFormatLocale(),
+					accessibility: Configuration.getAccessibility(),
+					animation: (Configuration.getAnimationMode() !== Configuration.AnimationMode.minimal &&
+								Configuration.getAnimationMode() !== Configuration.AnimationMode.none),
+					rtl: Configuration.getRTL(),
+					debug: Configuration.getDebug(),
+					inspect: Configuration.getInspect(),
+					originInfo: Configuration.getOriginInfo(),
+					noDuplicateIds: Configuration.getNoDuplicateIds()
 				},
-
 				libraries: _getLibraries(),
-
 				loadedLibraries: _getLoadedLibraries(),
-
 				loadedModules: LoaderExtensions.getAllRequiredModules().sort(),
-
 				URLParameters: getURLParameters()
 			};
 		}

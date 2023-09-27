@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
@@ -25,14 +25,13 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @private
 	 * @experimental 1.98
 	 * @since 1.98
 	 * @alias sap.f.cards.NumericIndicators
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var NumericIndicators = Control.extend("sap.f.cards.NumericIndicators", {
 		metadata: {
@@ -49,6 +48,12 @@ sap.ui.define([
 				 * The size of the of the main indicator. Possible values are "S" and "L".
 				 */
 				numberSize: { "type": "string", group : "Appearance", defaultValue: "L" },
+
+				/**
+				 * Whether the main numeric indicator is visible or not.
+				 * @since 1.109
+				 */
+				numberVisible: { "type": "boolean", defaultValue : true},
 
 				/**
 				 * Defines the unit of measurement (scaling prefix) for the main indicator.
@@ -72,6 +77,7 @@ sap.ui.define([
 				 * The alignment of the side indicators.
 				 */
 				sideIndicatorsAlignment: { "type": "sap.f.cards.NumericHeaderSideIndicatorsAlignment", group: "Appearance", defaultValue : "Begin" }
+
 			},
 			aggregations: {
 
@@ -90,55 +96,16 @@ sap.ui.define([
 	});
 
 	/**
-	 * Sets the value of the main number indicator.
-	 *
-	 * @public
-	 * @param {string} sValue A string representation of the number
-	 * @return {this} <code>this</code> pointer for chaining
+	 * Called before the control is rendered.
+	 * @private
 	 */
-	NumericIndicators.prototype.setNumber = function(sValue) {
-		this.setProperty("number", sValue);
-		this._getMainIndicator().setValue(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the unit of measurement (scaling prefix) for the main indicator.
-	 *
-	 * @public
-	 * @param {string} sValue The text of the title
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericIndicators.prototype.setScale = function(sValue) {
-		this.setProperty("scale", sValue, true);
-		this._getMainIndicator().setScale(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the direction of the trend arrow.
-	 *
-	 * @public
-	 * @param {sap.m.DeviationIndicator} sValue The direction of the trend arrow
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericIndicators.prototype.setTrend = function(sValue) {
-		this.setProperty("trend", sValue, true);
-		this._getMainIndicator().setIndicator(sValue);
-		return this;
-	};
-
-	/**
-	 * Sets the semantic color which represents the state of the main number indicator.
-	 *
-	 * @public
-	 * @param {sap.m.ValueColor} sValue The semantic color which represents the state
-	 * @return {this} <code>this</code> pointer for chaining
-	 */
-	NumericIndicators.prototype.setState = function(sValue) {
-		this.setProperty("state", sValue, true);
-		this._getMainIndicator().setValueColor(sValue);
-		return this;
+	NumericIndicators.prototype.onBeforeRendering = function () {
+		this._getMainIndicator()
+			.setValue(this.getNumber())
+			.setScale(this.getScale())
+			.setIndicator(this.getTrend())
+			.setValueColor(this.getState())
+			.setVisible(this.getNumberVisible());
 	};
 
 	/**

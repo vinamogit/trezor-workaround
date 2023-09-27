@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -71,7 +71,7 @@ sap.ui.define([
 			}
 
 			var bInAreaForRerendering = oVisitor.isMatching(oControl, function (oControl) {
-				return oControl.getMetadata().getName() === "sap.ui.core.UIArea" && oControl.bNeedsRerendering;
+				return oControl.isA("sap.ui.core.UIArea") && oControl.bNeedsRerendering;
 			});
 
 			if (bInAreaForRerendering) {
@@ -80,7 +80,7 @@ sap.ui.define([
 			}
 
 			var oAppWindowJQuery = this._getApplicationWindow().jQuery;
-			var oStaticArea = this._getApplicationWindow().sap.ui.getCore().getStaticAreaRef();
+			var oStaticArea = this._getApplicationWindow().sap.ui.require("sap/ui/core/Core").getStaticAreaRef();
 			var bControlIsInStaticArea = oAppWindowJQuery.contains(oStaticArea, oControl.getDomRef());
 			var bOpenStaticBlockingLayer = oAppWindowJQuery("#sap-ui-blocklayer-popup").is(":visible");
 

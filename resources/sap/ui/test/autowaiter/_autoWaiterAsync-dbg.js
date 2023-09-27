@@ -1,16 +1,16 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 sap.ui.define([
+	"sap/base/util/extend",
 	"sap/ui/test/_OpaLogger",
 	"sap/ui/test/_ParameterValidator",
 	"sap/ui/test/autowaiter/_autoWaiter",
-	"sap/ui/test/_LogCollector",
-	"sap/ui/thirdparty/jquery"
-], function(_OpaLogger, _ParameterValidator, _autoWaiter, _LogCollector, $) {
+	"sap/ui/test/_LogCollector"
+], function(extend, _OpaLogger, _ParameterValidator, _autoWaiter, _LogCollector) {
 	"use strict";
 
 	var oLogger = _OpaLogger.getLogger("sap.ui.test.autowaiter._autoWaiterAsync");
@@ -30,7 +30,7 @@ sap.ui.define([
 
 	function extendConfig(oNewConfig) {
 		validateConfig(oNewConfig);
-		$.extend(config, oNewConfig);
+		extend(config, oNewConfig);
 		_autoWaiter.extendConfig(config);
 	}
 

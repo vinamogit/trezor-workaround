@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -40,7 +40,7 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @private
@@ -48,7 +48,6 @@ sap.ui.define([
 		 *
 		 * @since 1.48
 		 * @alias sap.ui.layout.AlignedFlowLayout
-		 * @ui5-metamodel This control will also be described in the UI5 (legacy) design time meta model.
 		 */
 		var AlignedFlowLayout = Control.extend("sap.ui.layout.AlignedFlowLayout", {
 			metadata: {
@@ -96,7 +95,9 @@ sap.ui.define([
 						multiple: true
 					}
 				}
-			}
+			},
+
+			renderer: AlignedFlowLayoutRenderer
 		});
 
 		/**
@@ -320,16 +321,21 @@ sap.ui.define([
 				iEndItemOffsetLeft,
 				iAvailableWidthForEndItem;
 
+			var oLastItemComputedStyle = window.getComputedStyle(oLastItemDomRef);
 			if (Core.getConfiguration().getRTL()) {
-				iAvailableWidthForEndItem = iLastItemOffsetLeft;
+				var iLastItemMarginLeft = Number.parseFloat(oLastItemComputedStyle.marginLeft);
+				iAvailableWidthForEndItem = iLastItemOffsetLeft - iLastItemMarginLeft;
 			} else {
-				var iLastItemMarginRight = Number.parseFloat(window.getComputedStyle(oLastItemDomRef).marginRight);
-				var iRightBorderOfLastItem = iLastItemOffsetLeft + oLastItemDomRef.offsetWidth + iLastItemMarginRight;
+				var iLastItemMarginRight = Number.parseFloat(oLastItemComputedStyle.marginRight);
+				var iRightBorderOfLastItem = iLastItemOffsetLeft + oLastItemDomRef.offsetWidth + iLastItemMarginRight; // iLastItemOffsetLeft includes marginLeft
+
 				iAvailableWidthForEndItem = oDomRef.offsetWidth - iRightBorderOfLastItem;
 			}
 
-			var iEndItemMarginRight = Number.parseFloat(window.getComputedStyle(oEndItemDomRef).marginRight);
-			var bEnoughSpaceForEndItem = iAvailableWidthForEndItem >= (iEndItemWidth + iEndItemMarginRight);
+			var oEndItemComputedStyle = window.getComputedStyle(oEndItemDomRef);
+			var iEndItemMarginLeft = Number.parseFloat(oEndItemComputedStyle.marginLeft);
+			var iEndItemMarginRight = Number.parseFloat(oEndItemComputedStyle.marginRight);
+			var bEnoughSpaceForEndItem = iAvailableWidthForEndItem >= iEndItemMarginLeft + iEndItemWidth + iEndItemMarginRight;
 
 			// if the end item fits into the line
 			if (bEnoughSpaceForEndItem) {
@@ -386,6 +392,8 @@ sap.ui.define([
 			var sEndItemWidth = iEndItemWidth + "px";
 			mLastSpacerStyle.width = sEndItemWidth;
 			mLastSpacerStyle.minWidth = sEndItemWidth;
+			mLastSpacerStyle.marginLeft = iEndItemMarginLeft + "px";
+			mLastSpacerStyle.marginRight = iEndItemMarginRight + "px";
 			this.toggleDisplayOfSpacers(oDomRef);
 		};
 
@@ -417,6 +425,8 @@ sap.ui.define([
 				mLastSpacerStyle.width = "";
 				mLastSpacerStyle.height = "";
 				mLastSpacerStyle.display = "";
+				mLastSpacerStyle.marginLeft = "";
+				mLastSpacerStyle.marginRight = "";
 			}
 
 			oDomRef.classList.remove(oDomRef.classList.item(0) + "OneLine");

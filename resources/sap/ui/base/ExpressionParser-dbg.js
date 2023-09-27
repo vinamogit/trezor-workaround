@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
@@ -332,7 +332,7 @@ sap.ui.define([
 	 * @returns {any} the binding value
 	 */
 	function BINDING(i, aParts) {
-		return aParts[i];
+		return clean(aParts[i]);
 	}
 
 	/**
@@ -340,7 +340,7 @@ sap.ui.define([
 	 * and "else" clause.
 	 * @param {function} fnCondition - formatter function for the condition
 	 * @param {function} fnThen - formatter function for the "then" clause
-	 * @param {function} fnElse- formatter function for the "else" clause
+	 * @param {function} fnElse - formatter function for the "else" clause
 	 * @param {any[]} aParts - the array of binding values
 	 * @return {any} - the value of the "then" or "else" clause, depending on the value of the
 	 *   condition
@@ -374,7 +374,7 @@ sap.ui.define([
 		if (oReference) {
 			oReference.base = oParent;
 		}
-		return vChild;
+		return clean(vChild);
 	}
 
 	/**
@@ -388,10 +388,10 @@ sap.ui.define([
 		var oReference = {};
 
 		// evaluate function expression and call it
-		return fnLeft(aParts, oReference).apply(oReference.base,
+		return clean(fnLeft(aParts, oReference).apply(oReference.base,
 			aArguments.map(function (fnArgument) {
 				return fnArgument(aParts); // evaluate argument
-			}));
+			})));
 	}
 
 	/**
@@ -443,7 +443,7 @@ sap.ui.define([
 		if (oReference) {
 			oReference.base = oParent;
 		}
-		return vChild;
+		return clean(vChild);
 	}
 
 	/**
@@ -483,6 +483,16 @@ sap.ui.define([
 			nud: unexpected
 		};
 		return mSymbols[sId];
+	}
+
+	/**
+	 * Cleans the given <code>vValue</code>.
+	 *
+	 * @param {any} vValue - the value to be cleaned
+	 * @returns {any} the cleaned value
+	 */
+	function clean(vValue) {
+		return vValue === Function ? undefined : vValue;
 	}
 
 	/**
@@ -738,7 +748,7 @@ sap.ui.define([
 		 * Throws an error if the next token's ID is not equal to the optional
 		 * <code>sExpectedTokenId</code>.
 		 * @param {string} [sExpectedTokenId] - the expected id of the next token
-		 * @returns {object} - the next token or undefined if all tokens have been read
+		 * @returns {object|undefined} - the next token or undefined if all tokens have been read
 		 */
 		function advance(sExpectedTokenId) {
 			var oToken = aTokens[iNextToken];
@@ -760,7 +770,7 @@ sap.ui.define([
 
 		/**
 		 * Returns the next token in the array of tokens, but does not advance the index.
-		 * @returns {object} - the next token or undefined if all tokens have been read
+		 * @returns {object|undefined} - the next token or undefined if all tokens have been read
 		 */
 		function current() {
 			return aTokens[iNextToken];

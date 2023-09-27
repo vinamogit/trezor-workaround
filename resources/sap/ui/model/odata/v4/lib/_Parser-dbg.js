@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -338,6 +338,7 @@ sap.ui.define([], function () {
 	 * @constructor
 	 */
 	function _FilterParser() {
+		_Parser.apply(this, arguments);
 	}
 
 	_FilterParser.prototype = Object.create(_Parser.prototype);
@@ -421,6 +422,7 @@ sap.ui.define([], function () {
 	 * @constructor
 	 */
 	function _KeyPredicateParser() {
+		_Parser.apply(this, arguments);
 	}
 
 	_KeyPredicateParser.prototype = Object.create(_Parser.prototype);
@@ -463,6 +465,7 @@ sap.ui.define([], function () {
 	 * @constructor
 	 */
 	function _SystemQueryOptionParser() {
+		_Parser.apply(this, arguments);
 	}
 
 	_SystemQueryOptionParser.prototype = Object.create(_Parser.prototype);

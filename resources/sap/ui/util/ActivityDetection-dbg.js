@@ -1,13 +1,15 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*
  * IMPORTANT: This is a private module, its API must not be used and is subject to change.
  * Code other than the OpenUI5 libraries must not introduce dependencies to this module.
  */
-sap.ui.define([], function() {
+sap.ui.define([
+	"sap/ui/core/Theming"
+], function(Theming) {
 
 	"use strict";
 
@@ -161,6 +163,10 @@ sap.ui.define([], function() {
 			}
 		}, false);
 	}
+
+	Theming.attachApplied(function() {
+		oActivityDetection.refresh();
+	});
 
 	_onActivate();
 

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -18,10 +18,12 @@ sap.ui.define([
 	"./CalendarDateIntervalRenderer",
 	"sap/base/util/deepEqual",
 	"sap/m/Popover",
+	"sap/ui/core/CalendarType",
 	"sap/ui/core/Core",
 	"sap/base/Log",
-	"sap/ui/thirdparty/jquery",
-	"./DateRange"
+	"./DateRange",
+	"sap/ui/core/date/UI5Date"
+
 ], function(
 	CalendarUtils,
 	Calendar,
@@ -35,18 +37,18 @@ sap.ui.define([
 	CalendarDateIntervalRenderer,
 	deepEqual,
 	Popover,
+	CalendarType,
 	Core,
 	Log,
-	jQuery,
-	DateRange
+	DateRange,
+    UI5Date
 ) {
 	"use strict";
 
-	var CalendarType = sap.ui.core.CalendarType;
 	/*
-	* Inside the CalendarDateInterval CalendarDate objects are used. But in the API JS dates are used.
-	* So conversion must be done on API functions.
-	*/
+	 * Inside the CalendarDateInterval CalendarDate objects are used. But in the API JS dates are used.
+	 * So conversion must be done on API functions.
+	 */
 
 	/**
 	 * Constructor for a new <code>CalendarDateInterval</code>.
@@ -57,13 +59,12 @@ sap.ui.define([
 	 * @class
 	 * <code>CalendarDateInterval</code> only visualizes the dates in a one-line interval and allows the selection of a single day.
 	 * @extends sap.ui.unified.Calendar
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.30.0
 	 * @alias sap.ui.unified.CalendarDateInterval
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var CalendarDateInterval = Calendar.extend("sap.ui.unified.CalendarDateInterval", /** @lends sap.ui.unified.CalendarDateInterval.prototype */ { metadata : {
 
@@ -96,7 +97,7 @@ sap.ui.define([
 
 		},
 		designtime: "sap/ui/unified/designtime/CalendarDateInterval.designtime"
-	}});
+	}, renderer: CalendarDateIntervalRenderer});
 
 	CalendarDateInterval.prototype.init = function(){
 
@@ -107,13 +108,13 @@ sap.ui.define([
 	};
 
 	CalendarDateInterval.prototype.onBeforeRendering = function() {
-		Calendar.prototype.onBeforeRendering.apply(this, arguments);
-
-		this._bPoupupMode = this.getPickerPopup();
-
 		if (this._getSucessorsPickerPopup()) {
 			this.setProperty("_currentPicker", "month");
 		}
+
+		Calendar.prototype.onBeforeRendering.apply(this, arguments);
+
+		this._bPoupupMode = this.getPickerPopup();
 	};
 
 	CalendarDateInterval.prototype._selectYearRange = function() {
@@ -262,7 +263,6 @@ sap.ui.define([
 
 		if (!this._oCalendar) {
 			oCalendar = new Calendar(this.getId() + "--Cal");
-			oCalendar.setPopupMode(true);
 			oCalendar.attachEvent("select", this._handleCalendarPickerDateSelect, this);
 			oCalendar.attachEvent("cancel", function (oEvent) {
 				this._closeCalendarPicker(true);
@@ -324,7 +324,7 @@ sap.ui.define([
 			sAriaLabel = oTexts.sAriaLabel,
 			oHeader = this.getAggregation("header");
 		var oLocaleData = this._getLocaleData();
-		var oEndDate = CalendarDate.fromLocalJSDate(new Date(oDate.toLocalJSDate().getTime() + (this._getDays() - 1) * 24 * 60 * 60 * 1000), this.getPrimaryCalendarType());
+		var oEndDate = CalendarDate.fromLocalJSDate(UI5Date.getInstance(oDate.toLocalJSDate().getTime() + (this._getDays() - 1) * 24 * 60 * 60 * 1000), this.getPrimaryCalendarType());
 		oEndDate.setDate(1); // always use the first of the month to have stable year in Japanese calendar
 		var sDelimiter = oLocaleData.getIntervalPattern().replace("{0}", "").replace("{1}", "");
 		var sEndYear = this._oYearFormat.format(oEndDate.toUTCJSDate(), true);
@@ -355,7 +355,7 @@ sap.ui.define([
 		var oStartDate = this.getStartDate(),
 			oCalPicker = this._getCalendar(),
 			oSelectedRange = new DateRange(),
-			oEndDate = new Date(oStartDate.getTime());
+			oEndDate = UI5Date.getInstance(oStartDate.getTime());
 
 		oEndDate.setDate(oEndDate.getDate() + this._getDays() - 1);
 		oSelectedRange.setStartDate(oStartDate);
@@ -388,14 +388,6 @@ sap.ui.define([
 
 		if (!bSkipFocus) {
 			this._renderMonth(); // to focus date
-
-			// restore tabindex
-			var aMonths = this.getAggregation("month");
-
-			for (var i = 0; i < aMonths.length; i++) {
-				var oMonth = aMonths[i];
-				oMonth._oItemNavigation.getItemDomRefs()[oMonth._oItemNavigation.getFocusedIndex()].setAttribute("tabindex", "0");
-			}
 		}
 
 		this._getCalendar()._closePickers();
@@ -419,6 +411,13 @@ sap.ui.define([
 
 	};
 
+	/**
+	 * Set start date for the interval.
+	 *
+	 * @param {Date|module:sap/ui/core/date/UI5Date} oStartDate A date instance
+	 * @returns {this} Reference to <code>this</code> for method chaining
+	 * @public
+	 */
 	CalendarDateInterval.prototype.setStartDate = function(oStartDate){
 
 		CalendarUtils._checkJSDateObject(oStartDate);
@@ -438,13 +437,13 @@ sap.ui.define([
 		var oMinDate = this.getMinDate();
 		if (oMinDate && oStartDate.getTime() < oMinDate.getTime()) {
 			Log.warning("startDate < minDate -> minDate as startDate set", this);
-			oStartDate = new Date(oMinDate.getTime());
+			oStartDate = UI5Date.getInstance(oMinDate.getTime());
 		}
 
 		var oMaxDate = this.getMaxDate();
 		if (oMaxDate && oStartDate.getTime() > oMaxDate.getTime()) {
 			Log.warning("startDate > maxDate -> maxDate as startDate set", this);
-			oStartDate = new Date(oMaxDate.getTime());
+			oStartDate = UI5Date.getInstance(oMaxDate.getTime());
 		}
 
 		this.setProperty("startDate", oStartDate, true);
@@ -468,11 +467,12 @@ sap.ui.define([
 	};
 
 	// needs to be overwritten because differently implemented in Calendar
-	/*
-	 * Gets current value of property startDate.
+	/**
+	 * Returns the start date of the interval.
 	 *
 	 * Start date of the Interval
-	 * @returns {object} JavaScript date object for property startDate
+	 * @returns {Date|module:sap/ui/core/date/UI5Date} date instance for property <code>startDate</code>
+	 * @public
 	 */
 	CalendarDateInterval.prototype.getStartDate = function(){
 
@@ -596,7 +596,7 @@ sap.ui.define([
 	 *
 	 * @protected
 	 * @param {int} iMonths How many months to be displayed
-	 * @returns {this} <code>this</code> to allow method chaining
+	 * @returns {this} Reference to <code>this</code> for method chaining
 	 */
 	CalendarDateInterval.prototype.setMonths = function(iMonths){
 
@@ -615,7 +615,7 @@ sap.ui.define([
 	 *
 	 * @protected
 	 * @param {int} [iFirstDayOfWeek] First day of the week
-	 * @returns {this} <code>this</code> to allow method chaining
+	 * @returns {this} Reference to <code>this</code> for method chaining
 	 */
 	CalendarDateInterval.prototype.setFirstDayOfWeek = function(iFirstDayOfWeek){
 
@@ -629,8 +629,8 @@ sap.ui.define([
 
 	/**
 	* Focuses given date.
-	* @param {Date} oDate a JavaScript date
-	* @returns {this} <code>this</code> for method chaining
+	* @param {Date|module:sap/ui/core/date/UI5Date} oDate a date instance
+	* @returns {this} Reference to <code>this</code> for method chaining
 	*/
 	CalendarDateInterval.prototype.focusDate = function(oDate){
 
@@ -687,12 +687,11 @@ sap.ui.define([
 	 */
 	CalendarDateInterval.prototype._focusDateExtend = function(oDate, bOtherMonth, bNoEvent) {
 		if (bOtherMonth) {
-			var oOldFocusedDate = this._getFocusedDate(),
-				oOldStartDate = this._getStartDate(),
-				iDay = CalendarUtils._daysBetween(oOldFocusedDate, oOldStartDate),
+			var oMonth = this.getAggregation("month")[0],
+				iFocusDayIndex = oMonth._oItemNavigation ? oMonth._oItemNavigation.getFocusedIndex() : 0,
 				oNewStartDate = new CalendarDate(oDate, this.getPrimaryCalendarType());
 
-			oNewStartDate.setDate(oNewStartDate.getDate() - iDay);
+			oNewStartDate.setDate(oNewStartDate.getDate() - iFocusDayIndex);
 
 			this._setStartDate(oNewStartDate, false, true);
 
@@ -1121,7 +1120,7 @@ sap.ui.define([
 	/**
 	 * Sets given start date as date in local.
 	 *
-	 * @param {sap.ui.unified.calendar.CalendarDate} oStartDate Date that should be taken to create the local JavaScript date.
+	 * @param {sap.ui.unified.calendar.CalendarDate} oStartDate Date that should be taken to create the local UI5Date or JavaScript Date.
 	 * E.g. if the date is Dec 21th 1981, the local date (CEST) would be Dec 21th, 1981 00:00:00 GMT +02:00
 	 * @param {boolean} bSetFocusDate if true, sets this date as focused date
 	 * @param {boolean} bNoEvent describes whether the startDateChange event was previously thrown

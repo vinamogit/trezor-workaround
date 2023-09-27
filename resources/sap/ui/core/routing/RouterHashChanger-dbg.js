@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -36,7 +36,7 @@ sap.ui.define([
 		}
 	});
 
-	RouterHashChanger.InvalidHash = Object.create(null);
+	RouterHashChanger.InvalidHash = "SapUiCoreRoutingInvalidHash" + (new Date()).getTime();
 
 	RouterHashChanger.prototype.init = function() {
 		this.parent.init();

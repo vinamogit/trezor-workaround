@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -10,7 +10,9 @@ sap.ui.define([
 	'../base/EventProvider',
 	'./Popup',
 	'./BusyIndicatorUtils',
+	'sap/ui/core/Core',
 	'sap/ui/core/library',
+	'sap/ui/core/Lib',
 	"sap/ui/performance/trace/FESR",
 	"sap/ui/performance/trace/Interaction",
 	"sap/base/Log",
@@ -22,7 +24,9 @@ sap.ui.define([
 		EventProvider,
 		Popup,
 		BusyIndicatorUtils,
-		library,
+		Core,
+		coreLib,
+		Library,
 		FESR,
 		Interaction,
 		Log,
@@ -32,13 +36,13 @@ sap.ui.define([
 	"use strict";
 
 	//shortcut for sap.ui.core.BusyIndicatorSize
-	var BusyIndicatorSize = library.BusyIndicatorSize;
+	var BusyIndicatorSize = coreLib.BusyIndicatorSize;
 
 	/**
 	 * Provides methods to show or hide a waiting animation covering the whole
 	 * page and blocking user interaction.
 	 * @namespace
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @public
 	 * @alias sap.ui.core.BusyIndicator
 	 */
@@ -105,7 +109,7 @@ sap.ui.define([
 		oRootDomRef.id = this.sDOM_ID;
 
 		var oBusyContainer = document.createElement("div");
-		this._oResBundle = sap.ui.getCore().getLibraryResourceBundle("sap.ui.core");
+		this._oResBundle = Library.getResourceBundleFor("sap.ui.core");
 		var sTitle = this._oResBundle.getText("BUSY_TEXT");
 		delete this._oResBundle;
 
@@ -171,51 +175,40 @@ sap.ui.define([
 	 *                       If no delay (or no valid delay) is given, a delay of 1000 milliseconds is used.
 	 */
 	BusyIndicator.show = function(iDelay) {
-		Log.debug("sap.ui.core.BusyIndicator.show (delay: " + iDelay + ") at " + new Date().getTime());
+		Log.debug("sap.ui.core.BusyIndicator.show (delay: " + iDelay + ") at " + Date.now());
 		assert(iDelay === undefined || (typeof iDelay == "number" && (iDelay % 1 == 0)), "iDelay must be empty or an integer");
 
-		// If body/Core are not available yet, give them some more time and open
-		// later if still required
-		if (!document.body || !sap.ui.getCore().isInitialized()) {
-			// register core init only once, when bShowIsDelayed is not set yet
-			if (BusyIndicator._bShowIsDelayed === undefined) {
-				sap.ui.getCore().attachInit(function () {
-					// ignore init event, in case hide() was called in between
-					if (BusyIndicator._bShowIsDelayed) {
-						BusyIndicator.show(iDelay);
-					}
-				});
-			}
-			// everytime show() is called the call has to be delayed
+		if (BusyIndicator._bShowIsDelayed === undefined) {
 			BusyIndicator._bShowIsDelayed = true;
-			return;
-		}
+			Core.ready(function() {
+				BusyIndicator._bShowIsDelayed = undefined;
+				if ((iDelay === undefined)
+						|| ((iDelay != 0) && (parseInt(iDelay) == 0))
+						|| (parseInt(iDelay) < 0)) {
+					iDelay = this.iDEFAULT_DELAY_MS;
+				}
+				if (FESR.getActive()) {
+					this._fDelayedStartTime = now() + iDelay;
+				}
 
-		if ((iDelay === undefined)
-				|| ((iDelay != 0) && (parseInt(iDelay) == 0))
-				|| (parseInt(iDelay) < 0)) {
-			iDelay = this.iDEFAULT_DELAY_MS;
-		}
-		if (FESR.getActive()) {
-			this._fDelayedStartTime = now() + iDelay;
-		}
+				// Initialize/create the BusyIndicator if this has not been done yet.
+				// This has to be done before calling '_showNowIfRequested' because within
+				// '_init' the BusyIndicator attaches itself to the Popup's open event and
+				// to keep the correct order of 'show -> _showNowIfRequested -> _onOpen'
+				// the attaching has to happen earlier.
+				// Otherwise if an application attaches itself to the open event, this listener
+				// will be called before the BusyIndicator's open listener.
+				if (!this.oDomRef) {
+					this._init();
+				}
 
-		// Initialize/create the BusyIndicator if this has not been done yet.
-		// This has to be done before calling '_showNowIfRequested' because within
-		// '_init' the BusyIndicator attaches itself to the Popup's open event and
-		// to keep the correct order of 'show -> _showNowIfRequested -> _onOpen'
-		// the attaching has to happen earlier.
-		// Otherwise if an application attaches itself to the open event, this listener
-		// will be called before the BusyIndicator's open listener.
-		if (!this.oDomRef) {
-			this._init();
-		}
-
-		this.bOpenRequested = true;
-		if (iDelay === 0) { // avoid async call when there is no delay
-			this._showNowIfRequested();
-		} else {
-			setTimeout(this["_showNowIfRequested"].bind(this), iDelay);
+				this.bOpenRequested = true;
+				if (iDelay === 0) { // avoid async call when there is no delay
+					this._showNowIfRequested();
+				} else {
+					setTimeout(this["_showNowIfRequested"].bind(this), iDelay);
+				}
+			}.bind(this));
 		}
 	};
 
@@ -226,7 +219,7 @@ sap.ui.define([
 	 * @private
 	 */
 	BusyIndicator._showNowIfRequested = function() {
-		Log.debug("sap.ui.core.BusyIndicator._showNowIfRequested (bOpenRequested: " + this.bOpenRequested + ") at " + new Date().getTime());
+		Log.debug("sap.ui.core.BusyIndicator._showNowIfRequested (bOpenRequested: " + this.bOpenRequested + ") at " + Date.now());
 
 		// Do not open if the request has been canceled in the meantime
 		if (!this.bOpenRequested) {
@@ -254,7 +247,7 @@ sap.ui.define([
 	 * @public
 	 */
 	BusyIndicator.hide = function() {
-		Log.debug("sap.ui.core.BusyIndicator.hide at " + new Date().getTime());
+		Log.debug("sap.ui.core.BusyIndicator.hide at " + Date.now());
 		if (this._fDelayedStartTime) {  // Implies fesr header active
 			// The busy indicator shown duration d is calculated with:
 			// d = "time busy indicator was hidden" - "time busy indicator was requested" - "busy indicator delay"

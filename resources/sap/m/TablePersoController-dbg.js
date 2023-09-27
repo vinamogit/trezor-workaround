@@ -1,6 +1,6 @@
 /*
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -12,9 +12,10 @@ sap.ui.define([
 	'sap/ui/base/ManagedObjectRegistry',
 	"sap/ui/core/syncStyleClass",
 	"sap/base/Log",
-	"sap/ui/thirdparty/jquery"
+	"sap/ui/thirdparty/jquery",
+	"sap/ui/core/Configuration"
 ],
-	function(library, TablePersoDialog, ManagedObject, ManagedObjectRegistry, syncStyleClass, Log, jQuery) {
+	function(library, TablePersoDialog, ManagedObject, ManagedObjectRegistry, syncStyleClass, Log, jQuery, Configuration) {
 	"use strict";
 
 	// shortcut for sap.m.ResetAllMode
@@ -26,6 +27,8 @@ sap.ui.define([
 	 * a personalization dialog for, with a persistence service such as one provided by
 	 * the unified shell.
 	 *
+	 * @deprecated since 1.115. Please use the {@link sap.m.p13n.Engine Engine} for personalization instead.
+	 *
 	 * @param {string}
 	 *			[sId] optional id for the new control; generated automatically if
 	 *			no non-empty id is given Note: this can be omitted, no matter
@@ -34,14 +37,13 @@ sap.ui.define([
 	 *			[mSettings] optional map/JSON-object with initial settings for the
 	 *			new component instance
 	 * @public
-	 *
 	 * @class Table Personalization Controller
 	 * @extends sap.ui.base.ManagedObject
 	 * @author SAP
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @alias sap.m.TablePersoController
 	 */
-	var TablePersoController = ManagedObject.extend("sap.m.TablePersoController", /** @lends sap.m.TablePersoController */
+	var TablePersoController = ManagedObject.extend("sap.m.TablePersoController", /** @lends sap.m.TablePersoController.prototype */
 
 	{
 		constructor: function(sId, mSettings) {
@@ -51,6 +53,7 @@ sap.ui.define([
 		},
 
 		metadata: {
+			deprecated: true,
 			properties: {
 				"contentWidth": {type: "sap.ui.core.CSSSize"},
 				"contentHeight": {type: "sap.ui.core.CSSSize", since: "1.22"},
@@ -116,7 +119,7 @@ sap.ui.define([
 			} else {
 				var sMsg = "adding TablePersoController with duplicate id '" + sId + "'";
 				// duplicate ID detected => fail or at least log a warning
-				if (sap.ui.getCore().getConfiguration().getNoDuplicateIds()) {
+				if (Configuration.getNoDuplicateIds()) {
 					Log.error(sMsg);
 					throw new Error("Error: " + sMsg);
 				} else {
@@ -691,7 +694,7 @@ sap.ui.define([
 	TablePersoController.prototype._isStatic = function (sId) {
 		// SUGGESTED IMPROVEMENT: make this an inline function of '_getPersoColumnMap'
 		// it is only used there
-		var sUidPrefix = sap.ui.getCore().getConfiguration().getUIDPrefix();
+		var sUidPrefix = Configuration.getUIDPrefix();
 		var rGeneratedPrefix = new RegExp("^" + sUidPrefix);
 		return !rGeneratedPrefix.test(sId);
 	};

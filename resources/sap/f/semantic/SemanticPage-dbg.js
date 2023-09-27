@@ -1,10 +1,11 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
     "sap/ui/core/Control",
+    "sap/ui/core/Shortcut",
     "sap/f/library",
     "sap/f/DynamicPage",
     "sap/f/DynamicPageTitle",
@@ -18,6 +19,7 @@ sap.ui.define([
     "./SemanticPageRenderer"
 ], function(
     Control,
+	Shortcut,
 	library,
 	DynamicPage,
 	DynamicPageTitle,
@@ -32,7 +34,9 @@ sap.ui.define([
 ) {
 	"use strict";
 
-	// shortcut for sap.f.DynamicPageTitleArea
+	/**
+	 * @deprecated As of version 1.54
+	 */
 	var DynamicPageTitleArea = library.DynamicPageTitleArea;
 
 	/**
@@ -95,7 +99,7 @@ sap.ui.define([
 	* @extends sap.ui.core.Control
 	*
 	* @author SAP SE
-	* @version 1.98.0
+	* @version 1.118.0
 	*
 	* @constructor
 	* @public
@@ -105,7 +109,6 @@ sap.ui.define([
 	* @see {@link topic:84f3d52f492648d5b594e4f45dca7727 Semantic Pages}
 	* @see {@link topic:4a97a07ec8f5441d901994d82eaab1f5 Semantic Page (sap.m)}
 	* @see {@link fiori:https://experience.sap.com/fiori-design-web/semantic-page/ Semantic Page}
-	* @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	*/
 	var SemanticPage = Control.extend("sap.f.semantic.SemanticPage", /** @lends sap.f.semantic.SemanticPage.prototype */ {
 		metadata: {
@@ -188,7 +191,6 @@ sap.ui.define([
 				* If all the areas have assigned values greater than 1, the numbers are scaled so that at least one of them
 				* is equal to 1. For example, value of <code>2:4:8</code> is equal to <code>1:2:4</code>.
 				*
-				* <Note:> When this property is set the <code>titlePrimaryArea</code> property has no effect.
 				*
 				* @since 1.58
 				*/
@@ -229,7 +231,7 @@ sap.ui.define([
 				* the <code>SemanticPage</code> header is in its collapsed (snapped) state.</li>
 				* </ul>
 				*/
-				titleHeading: {type: "sap.ui.core.Control", multiple: false, defaultValue: null, forwarding: {getter: "_getTitle", aggregation: "heading"}},
+				titleHeading: {type: "sap.ui.core.Control", multiple: false, forwarding: {getter: "_getTitle", aggregation: "heading"}},
 
 				/**
 				* The <code>titleExpandedHeading</code> is positioned in the <code>SemanticPage</code> title left area
@@ -242,7 +244,7 @@ sap.ui.define([
 				* <code>titleSnappedHeading</code> to switch content when the header switches state.
 				* @since 1.58
 				*/
-				titleExpandedHeading: {type: "sap.ui.core.Control", multiple: false, defaultValue: null, forwarding: {getter: "_getTitle", aggregation: "expandedHeading"}},
+				titleExpandedHeading: {type: "sap.ui.core.Control", multiple: false, forwarding: {getter: "_getTitle", aggregation: "expandedHeading"}},
 
 				/**
 				* The <code>titleSnappedHeading</code> is positioned in the <code>SemanticPage</code> title left area
@@ -261,7 +263,7 @@ sap.ui.define([
 				* </ul>
 				* @since 1.58
 				*/
-				titleSnappedHeading: {type: "sap.ui.core.Control", multiple: false, defaultValue: null, forwarding: {getter: "_getTitle", aggregation: "snappedHeading"}},
+				titleSnappedHeading: {type: "sap.ui.core.Control", multiple: false, forwarding: {getter: "_getTitle", aggregation: "snappedHeading"}},
 
 				/**
 				 * The <code>SemanticPage</code> breadcrumbs.
@@ -278,7 +280,7 @@ sap.ui.define([
 				 * </ul>
 				 * @since 1.52
 				 */
-				titleBreadcrumbs: {type: "sap.m.IBreadcrumbs", multiple: false, defaultValue: null, forwarding: {getter: "_getTitle", aggregation: "breadcrumbs"}},
+				titleBreadcrumbs: {type: "sap.m.IBreadcrumbs", multiple: false, forwarding: {getter: "_getTitle", aggregation: "breadcrumbs"}},
 
 				/**
 				 * The only content that is displayed in the <code>SemanticPage</code> title
@@ -601,7 +603,9 @@ sap.ui.define([
 			},
 			dnd: { draggable: false, droppable: true },
 			designtime : "sap/f/designtime/SemanticPage.designtime"
-		}
+		},
+
+		renderer: SemanticPageRenderer
 	});
 
 	/*
@@ -680,7 +684,9 @@ sap.ui.define([
 		this._getPage().setShowFooter(bShowFooter);
 		return this.setProperty("showFooter", bShowFooter, true);
 	};
-
+	/**
+	 * @deprecated As of version 1.58, <code>titlePrimaryArea</code> has been deprecated
+	 */
 	SemanticPage.prototype.setTitlePrimaryArea = function (oPrimaryArea) {
 		var oDynamicPageTitle = this._getTitle();
 
@@ -718,6 +724,15 @@ sap.ui.define([
 		}
 
 		return Control.prototype.removeStyleClass.call(this, sClass, bSuppressRerendering);
+	};
+
+	SemanticPage.prototype.clone = function(){
+		var oClone = Control.prototype.clone.apply(this, arguments),
+			oContent = this.getAggregation('_dynamicPage').getContent();
+
+		oClone.setContent(oContent.clone());
+
+		return oClone;
 	};
 
 	/*
@@ -945,7 +960,7 @@ sap.ui.define([
 	* Process the given control,
 	* before setting it to one of the <code>sap.f.semantic.SemanticPage</code> aggregations.
 	* @param {sap.ui.core.Control} oControl
-	* @param {String} sType
+	* @param {string} sType
 	* @private
 	*/
 	SemanticPage.prototype._onAddAggregation = function (oControl, sType) {
@@ -958,7 +973,7 @@ sap.ui.define([
 	* Process the given control,
 	* after removing it from one of the <code>sap.f.semantic.SemanticPage</code> aggregations.
 	* @param {sap.ui.core.Control} oControl
-	* @param {String} sType
+	* @param {string} sType
 	* @private
 	*/
 	SemanticPage.prototype._onRemoveAggregation = function (oControl, sType) {
@@ -1081,6 +1096,8 @@ sap.ui.define([
 	SemanticPage.prototype._getTitle = function () {
 		if (!this._oDynamicPageTitle) {
 			this._oDynamicPageTitle = this._getSemanticTitle()._getContainer();
+
+			Shortcut.register(this._oDynamicPageTitle, "Ctrl+Shift+S", this._openShareMenu.bind(this));
 		}
 
 		return this._oDynamicPageTitle;
@@ -1116,9 +1133,9 @@ sap.ui.define([
 	};
 
 	/**
-	* Retrieves a <code>sap.f.SemanticTitle</code> instance.
+	* Retrieves a <code>sap.f.semantic.SemanticTitle</code> instance.
 	*
-	* @returns {sap.f.SemanticTitle}
+	* @returns {sap.f.semantic.SemanticTitle}
 	* @private
 	*/
 	SemanticPage.prototype._getSemanticTitle = function() {
@@ -1129,9 +1146,9 @@ sap.ui.define([
 	};
 
 	/**
-	* Retrieves a <code>sap.f.SemanticShareMenu</code> instance.
+	* Retrieves a <code>sap.f.semantic.SemanticShareMenu</code> instance.
 	*
-	* @returns {sap.f.SemanticShareMenu}
+	* @returns {sap.f.semantic.SemanticShareMenu}
 	* @private
 	*/
 	SemanticPage.prototype._getShareMenu = function() {
@@ -1173,6 +1190,20 @@ sap.ui.define([
 						|| oAction === aVisibleActions[0];
 			})[0];
 
+			// Clean action sheet CSS class
+			var oActionCtrl = oActionToBeMoved._getControl && oActionToBeMoved._getControl();
+			if (oActionCtrl) {
+				var AC_CLASS_PREFIX = "sapMActionSheet";
+				oActionCtrl.aCustomStyleClasses
+					.filter(function (sStyleClass) {
+						return sStyleClass.indexOf(AC_CLASS_PREFIX) > -1;
+					})
+					.forEach(function (sACStyleClass) {
+						oActionCtrl.removeStyleClass(sACStyleClass);
+					});
+			}
+
+
 			this._addShareMenuSingleAction(oActionToBeMoved);
 		}
 	};
@@ -1197,6 +1228,20 @@ sap.ui.define([
 	};
 
 	/**
+	* Opens the <code>sap.m.ActionSheet</code> container of <code>sap.m.SemanticShareMenu</code>.
+	*
+	* @private
+	*/
+	SemanticPage.prototype._openShareMenu = function () {
+		var oShareMenuButton = this._getShareMenu()._getShareMenuButton(),
+			oOverflowButton = this._getTitle().getAggregation("_actionsToolbar")._getOverflowButton();
+
+		if (oShareMenuButton.getVisible()) {
+			this._getActionSheet().openBy(!oShareMenuButton._bInOverflow ? oShareMenuButton : oOverflowButton);
+		}
+	};
+
+	/**
 	* Retrieves a <code>sap.m.ActionSheet</code> instance.
 	*
 	* @returns {sap.m.ActionSheet}
@@ -1210,9 +1255,9 @@ sap.ui.define([
 	};
 
 	/**
-	* Retrieves a <code>sap.f.SemanticFooter</code> instance.
+	* Retrieves a <code>sap.f.semantic.SemanticFooter</code> instance.
 	*
-	* @returns {sap.f.SemanticFooter}
+	* @returns {sap.f.semantic.SemanticFooter}
 	* @private
 	*/
 	SemanticPage.prototype._getSemanticFooter = function() {
@@ -1240,7 +1285,7 @@ sap.ui.define([
 	* Retrieves a <code>sap.f.semantic.SemanticContainer</code> instance
 	* for the given placement - TITLE_TEXT, TITLE_ICON, FOOTER_LEFT, FOOTER_RIGHT or SHARE_MENU.
 	*
-	* @param {String} sPlacement
+	* @param {string} sPlacement
 	* @returns {sap.f.semantic.SemanticContainer | null}
 	* @private
 	*/

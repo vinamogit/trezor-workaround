@@ -3,7 +3,10 @@
 /* Base theme                   */
 /* ============================ */
 
-@_sap_m_Label_AsteriskWidth: 6px;
+@_sap_m_Label_AsteriskOffsetWidth: 0.5rem;
+@_sap_m_Label_ColonOffsetWidth: 0.25rem;
+@_sap_m_Label_ColonOffsetWidth_lang_FR: 0.5rem;
+@_sap_m_Label_ColonOffsetWidth_lang_ZH: 0.875rem;
 
 .sapMLabel {
 	color: @sapUiContentLabelColor;
@@ -15,6 +18,7 @@
 	cursor: text;
 	overflow: hidden;
 	box-sizing: border-box;
+	--_sap_m_Label_ReservedSpace: 0%;
 }
 
 .sapMLabel .sapMLabelTextWrapper {
@@ -25,11 +29,43 @@
 .sapMLabel:not(.sapMLabelWrapped) .sapMLabelTextWrapper {
 	display: inline-block;
 	vertical-align: top;
-	max-width: 100%;
+	max-width: calc(~"100% - var(--_sap_m_Label_ReservedSpace)");
 }
 
-.sapMLabel.sapMLabelRequired:not(.sapMLabelWrapped) .sapMLabelTextWrapper {
-	max-width: calc(~"100% - 0.125rem - @{_sap_m_Label_AsteriskWidth}");
+.sapMLabel:not(.sapMLabelWrapped):not(.sapMLabelMaxWidth) {
+	&.sapMLabelRequired {
+		--_sap_m_Label_ReservedSpace: @_sap_m_Label_AsteriskOffsetWidth;
+	}
+
+	&.sapMLabelShowColon {
+		--_sap_m_Label_ReservedSpace: @_sap_m_Label_ColonOffsetWidth;
+
+		&:lang(fr) {
+			--_sap_m_Label_ReservedSpace: @_sap_m_Label_ColonOffsetWidth_lang_FR;
+		}
+
+		&:lang(zh-TW),
+		&:lang(zh-CN),
+		&:lang(zh-Hans),
+		&:lang(zh-Hant) {
+			--_sap_m_Label_ReservedSpace: @_sap_m_Label_ColonOffsetWidth_lang_ZH;
+		}
+	}
+
+	&.sapMLabelRequired.sapMLabelShowColon {
+		--_sap_m_Label_ReservedSpace: @_sap_m_Label_AsteriskOffsetWidth + @_sap_m_Label_ColonOffsetWidth;
+
+		&:lang(fr) {
+			--_sap_m_Label_ReservedSpace: @_sap_m_Label_AsteriskOffsetWidth + @_sap_m_Label_ColonOffsetWidth_lang_FR;
+		}
+
+		&:lang(zh-TW),
+		&:lang(zh-CN),
+		&:lang(zh-Hans),
+		&:lang(zh-Hant) {
+			--_sap_m_Label_ReservedSpace: @_sap_m_Label_AsteriskOffsetWidth + @_sap_m_Label_ColonOffsetWidth_lang_ZH;
+		}
+	}
 }
 
 .sapMLabelBold,
@@ -41,7 +77,7 @@
 	max-width: 100%;
 }
 
-.sapMLIBActionable .sapMLabel{
+.sapMLIBActionable .sapMLabel {
 	cursor: pointer;
 }
 
@@ -180,6 +216,15 @@ td.sapUiFormElementLbl:not(.sapUiGridLabelFull) > .sapMLabel{
 			&:lang(zh-TW) {
 				padding-right: 1.59em;
 			}
+			&:lang(zh-CN) {
+				padding-right: 1.59em;
+			}
+			&:lang(zh-Hans) {
+				padding-right: 1.59em;
+			}
+			&:lang(zh-Hant) {
+				padding-right: 1.59em;
+			}
 
 			.sapMLabelColonAndRequired {
 				position: absolute;
@@ -288,7 +333,7 @@ td.sapUiFormElementLbl:not(.sapUiGridLabelFull) > .sapMLabel{
 
 .sapUiSizeCompact,
 .sapUiSizeCondensed {
-	.sapUiTableCell .sapMLabel {
+	.sapUiTableCell:not(.sapUiTableHeaderDataCell) .sapMLabel {
 		font-weight: normal;
 		font-size: @sapMFontHeader6Size;
 	}
@@ -317,4 +362,5 @@ td.sapUiFormElementLbl:not(.sapUiGridLabelFull) > .sapMLabel{
 .sapMListTbl .sapMColumnHeader .sapMLabel {
 	font-weight: @sapUiColumnHeaderFontWeight;
 	font-size: @sapUiColumnHeaderFontSize;
+	color: @sapUiListHeaderTextColor;
 }

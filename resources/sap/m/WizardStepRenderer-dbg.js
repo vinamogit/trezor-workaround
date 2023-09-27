@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -30,12 +30,14 @@ sap.ui.define(function () {
 	};
 
 	WizardStepRenderer.renderWizardStepTitle = function (oRm, oStep) {
-		oRm.openStart("h3", oStep.getId() + "-Title")
+		var sStepTitleLevel = oStep.getProperty("_titleLevel").toLowerCase();
+
+		oRm.openStart(sStepTitleLevel, oStep.getId() + "-Title")
 			.class("sapMWizardStepTitle")
 			.openEnd()
 			.text(this._resolveOrder(oStep))
 			.text(oStep.getTitle())
-			.close("h3");
+			.close(sStepTitleLevel);
 	};
 
 	WizardStepRenderer.renderContent = function (oRm, oStep) {

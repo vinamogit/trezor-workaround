@@ -1,12 +1,12 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
-	"sap/ui/base/Object",
-	"sap/ui/thirdparty/jquery"
-], function (UI5Object, $) {
+	"sap/base/util/isEmptyObject",
+	"sap/ui/base/Object"
+], function (isEmptyObject, UI5Object) {
 	"use strict";
 
 	var MAX_COUNT = 500;
@@ -34,7 +34,7 @@ sap.ui.define([
 		},
 
 		start: function (sLevel, iMaxCount) {
-			if (!$.isEmptyObject(this._console)) {
+			if (!isEmptyObject(this._console)) {
 				throw new Error("_BrowserLogCollector: 'start' has already been called. Call 'stop' before re-starting the _BrowserLogCollector instance.");
 			}
 

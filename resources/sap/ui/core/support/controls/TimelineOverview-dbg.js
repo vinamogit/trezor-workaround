@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -165,7 +165,7 @@ sap.ui.define([
 				};
 
 				/* eslint-disable no-loop-func */
-				selectedStepsByTime.map(function(step) {
+				selectedStepsByTime.forEach(function(step) {
 					stepItem.totalDuration += step.calculatedDuration;
 				});
 				/* eslint-enable no-loop-func */

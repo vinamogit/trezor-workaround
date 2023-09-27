@@ -1,11 +1,11 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
-sap.ui.define(["./library", "sap/ui/base/ManagedObject", "sap/base/Log"],
-function (coreLibrary, ManagedObject, Log) {
+sap.ui.define(["./library", "sap/ui/base/ManagedObject", "sap/base/Log", "sap/ui/core/StaticArea"],
+function (coreLibrary, ManagedObject, Log, StaticArea) {
 	"use strict";
 
 	var oInstance;
@@ -32,12 +32,11 @@ function (coreLibrary, ManagedObject, Log) {
 	 * @extends sap.ui.base.ManagedObject
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @hideconstructor
 	 * @public
 	 * @since 1.78
 	 * @alias sap.ui.core.InvisibleMessage
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 
 	var InvisibleMessage = ManagedObject.extend("sap.ui.core.InvisibleMessage", /** @lends sap.ui.core.InvisibleMessage.prototype */ {
@@ -70,8 +69,7 @@ function (coreLibrary, ManagedObject, Log) {
 	};
 
 	InvisibleMessage.prototype.init = function () {
-		var oCore = sap.ui.getCore(),
-			oStatic = oCore.getStaticAreaRef();
+		var oStatic = StaticArea.getDomRef();
 
 		oStatic.insertAdjacentHTML("beforeend", this.getPoliteInstance());
 		oStatic.insertAdjacentHTML("beforeend", this.getAssertiveInstance());
@@ -85,8 +83,7 @@ function (coreLibrary, ManagedObject, Log) {
 	 * @public
 	 */
 	InvisibleMessage.prototype.announce = function (sText, sMode) {
-		var oCore = sap.ui.getCore(),
-			oStatic = oCore.getStaticAreaRef(),
+		var oStatic = StaticArea.getDomRef(),
 			oPoliteMarkup = oStatic.querySelector(".sapUiInvisibleMessagePolite"),
 			oAssertiveMarkup = oStatic.querySelector(".sapUiInvisibleMessageAssertive");
 

@@ -1,13 +1,13 @@
-/*
- * ! OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+/*!
+ * OpenUI5
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides control sap.m.P13nColumnsPanel.
 sap.ui.define([
-	'sap/ui/core/library', 'sap/ui/model/ChangeReason', 'sap/ui/model/json/JSONModel', 'sap/ui/model/BindingMode', 'sap/ui/core/IconPool', './library', './Table', './Column', './ColumnListItem', './P13nPanel', './P13nColumnsItem', './SearchField', './Text', './Button', './OverflowToolbar', './OverflowToolbarLayoutData', './OverflowToolbarButton', './ToolbarSpacer', "sap/ui/thirdparty/jquery"
-], function(CoreLibrary, ChangeReason, JSONModel, BindingMode, IconPool, library, Table, Column, ColumnListItem, P13nPanel, P13nColumnsItem, SearchField, Text, Button, OverflowToolbar, OverflowToolbarLayoutData, OverflowToolbarButton, ToolbarSpacer, jQuery) {
+	'sap/ui/core/library', 'sap/ui/model/ChangeReason', 'sap/ui/model/json/JSONModel', 'sap/ui/model/BindingMode', 'sap/ui/core/IconPool', './library', './Table', './Column', './ColumnListItem', './P13nPanel', './P13nColumnsItem', './SearchField', './Text', './Button', './OverflowToolbar', './OverflowToolbarLayoutData', './OverflowToolbarButton', './ToolbarSpacer', "sap/ui/thirdparty/jquery", "sap/ui/core/Configuration"
+], function(CoreLibrary, ChangeReason, JSONModel, BindingMode, IconPool, library, Table, Column, ColumnListItem, P13nPanel, P13nColumnsItem, SearchField, Text, Button, OverflowToolbar, OverflowToolbarLayoutData, OverflowToolbarButton, ToolbarSpacer, jQuery, Configuration) {
 	"use strict";
 
 	// shortcut for sap.m.OverflowToolbarPriority
@@ -38,13 +38,12 @@ sap.ui.define([
 	 * @class The <code>P13nColumnsPanel</code> control is used to define column-specific settings for table personalization.
 	 * @extends sap.m.P13nPanel
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @constructor
 	 * @deprecated as of version 1.98. Use the {@link sap.m.p13n.SelectionPanel} instead.
 	 * @public
 	 * @since 1.26.0
 	 * @alias sap.m.P13nColumnsPanel
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var P13nColumnsPanel = P13nPanel.extend("sap.m.P13nColumnsPanel", /** @lends sap.m.P13nColumnsPanel.prototype */
 	{
@@ -501,8 +500,7 @@ sap.ui.define([
 						minWidth: "12.5rem",
 						maxWidth: "23.077rem",
 						shrinkable: true,
-						moveToOverflow: false,
-						stayInOverflow: false
+						priority: OverflowToolbarPriority.NeverOverflow
 					})
 				}), new Button(this.getId() + "-showSelected", {
 					text: {
@@ -520,7 +518,6 @@ sap.ui.define([
 					type: ButtonType.Transparent,
 					press: jQuery.proxy(this._onSwitchButtonShowSelected, this),
 					layoutData: new OverflowToolbarLayoutData({
-						moveToOverflow: true,
 						priority: OverflowToolbarPriority.High
 					})
 				}), new OverflowToolbarButton({
@@ -533,7 +530,6 @@ sap.ui.define([
 					},
 					press: jQuery.proxy(this.onPressButtonMoveToTop, this),
 					layoutData: new OverflowToolbarLayoutData({
-						moveToOverflow: true,
 						priority: OverflowToolbarPriority.Low,
 						group: 2
 					})
@@ -547,7 +543,6 @@ sap.ui.define([
 					},
 					press: jQuery.proxy(this.onPressButtonMoveUp, this),
 					layoutData: new OverflowToolbarLayoutData({
-						moveToOverflow: true,
 						priority: OverflowToolbarPriority.High,
 						group: 1
 					})
@@ -561,7 +556,6 @@ sap.ui.define([
 					},
 					press: jQuery.proxy(this.onPressButtonMoveDown, this),
 					layoutData: new OverflowToolbarLayoutData({
-						moveToOverflow: true,
 						priority: OverflowToolbarPriority.High,
 						group: 1
 					})
@@ -575,7 +569,6 @@ sap.ui.define([
 					},
 					press: jQuery.proxy(this.onPressButtonMoveToBottom, this),
 					layoutData: new OverflowToolbarLayoutData({
-						moveToOverflow: true,
 						priority: OverflowToolbarPriority.Low,
 						group: 2
 					})
@@ -722,7 +715,7 @@ sap.ui.define([
 		var oCollator;
 		var sLanguage;
 		try {
-			sLanguage = sap.ui.getCore().getConfiguration().getLocale().toString();
+			sLanguage = Configuration.getLocale().toString();
 			if (typeof window.Intl !== 'undefined') {
 				oCollator = window.Intl.Collator(sLanguage, {
 					numeric: true

@@ -1,23 +1,28 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides the basic UI5 support functionality
-sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParameters", "sap/ui/thirdparty/jquery", "sap/base/Log", "sap/base/util/deepExtend", "sap/base/security/encodeURL"],
-	function(
-		EventProvider,
-		Plugin,
-		UriParameters,
-		jQuery,
-		Log,
-		deepExtend,
-		encodeURL
-	) {
+sap.ui.define([
+	"sap/ui/base/EventProvider",
+	"./Plugin",
+	"sap/base/util/UriParameters",
+	"sap/ui/thirdparty/jquery",
+	"sap/base/Log",
+	"sap/base/security/encodeURL",
+	"sap/ui/core/Lib"
+], function (
+	EventProvider,
+	Plugin,
+	UriParameters,
+	jQuery,
+	Log,
+	encodeURL,
+	Library
+) {
 	"use strict";
-
-	/*global document, localStorage, window */
 
 	/**
 	 * Constructor for sap.ui.core.support.Support - must not be used: To get the singleton instance, use
@@ -26,7 +31,7 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 	 * @class This class provides the support tool functionality of UI5. This class is internal and all its functions must not be used by an application.
 	 *
 	 * @extends sap.ui.base.EventProvider
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 * @private
 	 * @alias sap.ui.core.support.Support
 	 */
@@ -42,7 +47,7 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 			this._sType = sType;
 			this._sLocalOrigin = window.location.protocol + "//" + window.location.host;
 
-			var fHandler = jQuery.proxy(this._receiveEvent, this);
+			var fHandler = this._receiveEvent.bind(this);
 			if (window.addEventListener) {
 				window.addEventListener("message", fHandler, false);
 			} else {
@@ -70,6 +75,14 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 						that._isOpen = true;
 						Support.initPlugins(that, false);
 					});
+					this.attachEvent(mEvents.RELOAD, function(oEvent) {
+						close(this._oRemoteWindow);
+						window.location.reload();
+					}.bind(this));
+					this.attachEvent(mEvents.RELOAD_WITH_PARAMETER, function(oEvent) {
+						close(this._oRemoteWindow);
+						this._reloadWithParameter(oEvent.getParameter("parameterName"), oEvent.getParameter("parameterValue"));
+					}.bind(this));
 					break;
 				case mTypes.TOOL:
 					this._oRemoteWindow = window.opener;
@@ -87,7 +100,7 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 							});
 						}
 
-						sap.ui.getCore().loadLibraries(aLibs, true).then(function() {
+						Library._load(aLibs).then(function() {
 							jQuery(function(){
 								Support.initPlugins(that, true).then(function() {
 									that.sendEvent(mEvents.SETUP);
@@ -96,6 +109,8 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 						});
 					});
 					this.sendEvent(mEvents.LIBS);
+					break;
+				default:
 					break;
 			}
 
@@ -112,7 +127,9 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 	var mEvents = {
 		LIBS: "sapUiSupportLibs",
 		SETUP: "sapUiSupportSetup", //Event when support tool is opened
-		TEAR_DOWN: "sapUiSupportTeardown" //Event when support tool is closed
+		TEAR_DOWN: "sapUiSupportTeardown", //Event when support tool is closed
+		RELOAD: "sapUiSupportReload",
+		RELOAD_WITH_PARAMETER: "sapUiSupportReloadWithParameter"
 	};
 
 
@@ -338,6 +355,26 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 		return "sap.ui.core.support.Support";
 	};
 
+	Support.prototype._reloadWithParameter = function (sParameter, vValue) {
+		// fetch current parameters from URL
+		var sSearch = window.location.search,
+			sURLParameter = sParameter + "=" + vValue;
+
+		/// replace or append the new URL parameter
+		if (sSearch && sSearch !== "?") {
+			var oRegExp = new RegExp("(?:^|\\?|&)" + sParameter + "=[^&]+");
+			if (sSearch.match(oRegExp)) {
+				sSearch = sSearch.replace(oRegExp, sURLParameter);
+			} else {
+				sSearch += "&" + sURLParameter;
+			}
+		} else {
+			sSearch = "?" + sURLParameter;
+		}
+
+		// reload the page by setting the new parameters
+		window.location.search = sSearch;
+	};
 
 	/**
 	 * @see sap.ui.base.EventProvider.prototype.fireEvent
@@ -668,7 +705,7 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 
 		/**
 		 * Returns the support info by index
-		 * @param {int} the index of the info
+		 * @param {int} iIndex the index of the info
 		 * @experimental
 		 * @private
 		 */
@@ -817,7 +854,7 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 		 * Adds an XML modification to the stack of modifications.
 		 * @param {string} sId the id of that is used to identify the change after a reload
 		 * @param {int} iIdx the index of node within the XML document (can be determined by root.querySelectorAll('*')
-		 * @param {object} containing the change as {setAttribute: [attributeName,newValue]}
+		 * @param {object} oChange containing the change as {setAttribute: [attributeName,newValue]}
 		 * @experimental
 		 * @private
 		 */
@@ -939,11 +976,14 @@ sap.ui.define(['sap/ui/base/EventProvider', './Plugin', "sap/base/util/UriParame
 			Log.info("sap.ui.core.support.Support.info initialized.");
 		}
 
-		if ( bAsync ) {
-			sap.ui.require(aModulesWhereToInjectSupportInfo, injectSupportInfo);
-		} else {
-			injectSupportInfo.apply(null, aModulesWhereToInjectSupportInfo.map(sap.ui.requireSync) );
+		/**
+		 * @deprecated
+		 */
+		if (!bAsync) {
+			injectSupportInfo.apply(null, aModulesWhereToInjectSupportInfo.map(sap.ui.requireSync) ); // legacy-relevant: Sync path
+			return;
 		}
+		sap.ui.require(aModulesWhereToInjectSupportInfo, injectSupportInfo);
 	};
 
 	return Support;

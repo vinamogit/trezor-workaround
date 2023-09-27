@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -66,7 +66,8 @@ sap.ui.define("sap/ui/test/qunitPause", [
 			var that = this;
 			var aAssertArgs = arguments;
 			var bPassed = isQUnit2() ? arguments[0].result : arguments[0];
-			var bIsOpaTest = that.test && sap.ui.test && sap.ui.test.Opa && sap.ui.test.Opa.config.testName === that.test.testName;
+			var Opa = sap.ui.require("sap/ui/test/Opa");
+			var bIsOpaTest = that.test && Opa && Opa.config.testName === that.test.testName;
 
 			// if this is an OPA test and the rule says to pause - add a new promise to the OPA queue.
 			// assuming that the assert is inside a success function,
@@ -75,7 +76,7 @@ sap.ui.define("sap/ui/test/qunitPause", [
 				// - assertions are supposed to be added in a success; waitfors added in success are pushed to top of the queue -> this should be the very next waitfor after a fail
 				// - on timeout an assertion result is pushed -> test is paused
 				// - there is only one queue - it's ok to create a new Opa
-				var oOpa = new sap.ui.test.Opa();
+				var oOpa = new Opa();
 				var bPromisePending = true;
 
 				emitPause();

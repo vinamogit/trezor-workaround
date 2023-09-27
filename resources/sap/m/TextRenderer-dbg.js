@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -10,13 +10,13 @@ sap.ui.define([
 	'sap/ui/core/library',
 	'sap/m/HyphenationSupport',
 	'./library',
-	'sap/ui/core/Core'
+	"sap/ui/core/Lib"
 ], function(
 	Renderer,
 	coreLibrary,
 	HyphenationSupport,
 	mobileLibrary,
-	Core
+	Library
 ) {
 		"use strict";
 
@@ -30,7 +30,7 @@ sap.ui.define([
 		var EmptyIndicatorMode = mobileLibrary.EmptyIndicatorMode;
 
 		// shortcut for library resource bundle
-		var oRb = Core.getLibraryResourceBundle("sap.m");
+		var oRb = Library.getResourceBundleFor("sap.m");
 
 		/**
 		 * Text renderer.
@@ -96,6 +96,8 @@ sap.ui.define([
 			}
 
 			HyphenationSupport.writeHyphenationClass(oRm, oText);
+
+			oRm.accessibilityState(oText);
 
 			// finish writing html
 			oRm.openEnd();

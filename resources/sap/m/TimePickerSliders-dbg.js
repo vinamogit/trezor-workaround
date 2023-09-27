@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -10,14 +10,15 @@ sap.ui.define([
 	'sap/ui/model/type/Date',
 	'sap/ui/model/odata/type/ODataType',
 	'sap/ui/core/format/DateFormat',
-	'./TimePickerSlidersRenderer',
 	'./TimePickerSlider',
+	'./TimePickerSlidersRenderer',
 	'./VisibleItem',
 	'sap/ui/core/LocaleData',
 	'sap/ui/Device',
 	'sap/ui/core/Locale',
-	'./TimePickerSlidersRenderer',
-	"sap/ui/thirdparty/jquery"
+	"sap/ui/thirdparty/jquery",
+	"sap/ui/core/Configuration",
+	'sap/ui/core/date/UI5Date'
 ],
 	function(
 		coreLibrary,
@@ -25,14 +26,15 @@ sap.ui.define([
 		SimpleDateType,
 		ODataType,
 		DateFormat,
-		SlidersRenderer,
 		TimePickerSlider,
+		TimePickerSlidersRenderer,
 		VisibleItem,
 		LocaleData,
 		Device,
 		Locale,
-		TimePickerSlidersRenderer,
-		jQuery
+		jQuery,
+		Configuration,
+		UI5Date
 	) {
 		"use strict";
 
@@ -50,7 +52,7 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @public
@@ -79,14 +81,14 @@ sap.ui.define([
 					 * The <code>displayFormat</code> comes from the browser language settings if not set explicitly.
 					 *
 					 */
-					displayFormat: {name: "displayFormat", type: "string", group: "Appearance"},
+					displayFormat: {type: "string", group: "Appearance"},
 
 					/**
 					 * Defines the text of the picker label.
 					 *
 					 * It is read by screen readers. It is visible only on phone.
 					 */
-					labelText: {name: "labelText", type: "string"},
+					labelText: {type: "string"},
 
 					/**
 					 * Sets the minutes slider step. If step is less than 1, it will be automatically converted back to 1.
@@ -149,7 +151,9 @@ sap.ui.define([
 						}
 					}
 				}
-			}
+			},
+
+			renderer: TimePickerSlidersRenderer
 		});
 
 		/**
@@ -158,7 +162,7 @@ sap.ui.define([
 		 * @private
 		 */
 		TimePickerSliders.prototype.init = function () {
-			var oLocale = sap.ui.getCore().getConfiguration().getFormatSettings().getFormatLocale(),
+			var oLocale = Configuration.getFormatSettings().getFormatLocale(),
 				oLocaleData = LocaleData.getInstance(oLocale),
 				aPeriods = oLocaleData.getDayPeriods("abbreviated"),
 				sDefaultDisplayFormat = oLocaleData.getTimePattern("medium");
@@ -354,7 +358,7 @@ sap.ui.define([
 				oFormatSlider = this._getFormatSlider(),
 				iHours = null,
 				sAmpm = null,
-				oDateValue = new Date();
+				oDateValue = UI5Date.getInstance();
 
 			if (oHoursSlider) {
 				iHours = parseInt(oHoursSlider.getSelectedValue());
@@ -440,7 +444,7 @@ sap.ui.define([
 				iHours,
 				sAmPm = null;
 
-			oDate = oDate || new Date();
+			oDate = oDate || UI5Date.getInstance();
 
 			// Cross frame check for a date should be performed here otherwise setDateValue would fail in OPA tests
 			// because Date object in the test is different than the Date object in the application (due to the iframe).
@@ -685,7 +689,7 @@ sap.ui.define([
 		 */
 		TimePickerSliders.prototype._getLocaleBasedPattern = function (sPlaceholder) {
 			return LocaleData.getInstance(
-				sap.ui.getCore().getConfiguration().getFormatSettings().getFormatLocale()
+				Configuration.getFormatSettings().getFormatLocale()
 			).getTimePattern(sPlaceholder);
 		};
 
@@ -909,7 +913,7 @@ sap.ui.define([
 			}
 
 			if (!sCalendarType) {
-				sCalendarType = sap.ui.getCore().getConfiguration().getCalendarType();
+				sCalendarType = Configuration.getCalendarType();
 			}
 
 			return this._getFormatterInstance(sPattern, bRelative, sCalendarType);
@@ -1089,8 +1093,9 @@ sap.ui.define([
 		 *  00:00:00 with displayFormat "mm:HH:ss" -> 00:24:00
 		 *  0:00:00 with displayFormat "H:mm:ss" -> 24:00:00
 		 *  00:0:00 with displayFormat "mm:H:ss" -> 00:24:00
-		 * @param iIndexHH index of the HH in the displayFormat
-		 * @param iIndexH index of the H in the displayFormat
+		 * @param {string} sValue Value to replace the zeroes in
+		 * @param {int} iIndexOfHH index of the HH in the displayFormat
+		 * @param {int} iIndexOfH index of the H in the displayFormat
 		 * @private
 		 */
 		TimePickerSliders._replaceZeroHoursWith24 = function (sValue, iIndexOfHH, iIndexOfH) {
@@ -1113,8 +1118,9 @@ sap.ui.define([
 		 *  00:24:00 with displayFormat "mm:HH:ss" -> 00:00:00
 		 *  24:00:00 with displayFormat "H:mm:ss" -> 0:00:00
 		 *  00:24:00 with displayFormat "mm:H:ss" -> 00:0:00
-		 * @param iIndexHH index of the HH in the displayFormat
-		 * @param iIndexH index of the H in the displayFormat
+		 * @param {string} sValue Value to replace the 24 with zeroes in
+		 * @param {int} iIndexOfHH index of the HH in the displayFormat
+		 * @param {int} iIndexOfH index of the H in the displayFormat
 		 * @private
 		 */
 		TimePickerSliders._replace24HoursWithZero = function (sValue, iIndexOfHH, iIndexOfH) {

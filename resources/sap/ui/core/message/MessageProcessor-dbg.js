@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -27,7 +27,7 @@ sap.ui.define(['sap/ui/base/EventProvider', "sap/base/util/uid"],
 	 * @extends sap.ui.base.EventProvider
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @public
 	 * @alias sap.ui.core.message.MessageProcessor
@@ -39,7 +39,6 @@ sap.ui.define(['sap/ui/base/EventProvider', "sap/base/util/uid"],
 
 			this.mMessages = null;
 			this.id = uid();
-			sap.ui.getCore().getMessageManager().registerMessageProcessor(this);
 		},
 
 		metadata : {
@@ -133,9 +132,21 @@ sap.ui.define(['sap/ui/base/EventProvider', "sap/base/util/uid"],
 	 *
 	 * @returns {this} Reference to <code>this</code> in order to allow method chaining
 	 * @protected
+	 * @deprecated 1.115 Use {@link sap.ui.core.Messaging#updateMessages} instead
 	 */
 	MessageProcessor.prototype.fireMessageChange = function(mParameters) {
-		this.fireEvent("messageChange", mParameters);
+		var Messaging =  sap.ui.require("sap/ui/core/Messaging");
+		if (Messaging) {
+			Messaging.registerMessageProcessor(this);
+			Messaging.updateMessages(mParameters.oldMessages, mParameters.newMessages);
+			this.fireEvent("messageChange", mParameters);
+		} else  {
+			sap.ui.require(["sap/ui/core/Messaging"], function(Messaging)  {
+				Messaging.registerMessageProcessor(this);
+				Messaging.updateMessages(mParameters.oldMessages, mParameters.newMessages);
+				this.fireEvent("messageChange", mParameters);
+			}.bind(this));
+		}
 		return this;
 	};
 	// the 'abstract methods' to be implemented by child classes
@@ -168,15 +179,6 @@ sap.ui.define(['sap/ui/base/EventProvider', "sap/base/util/uid"],
 	 */
 	MessageProcessor.prototype.getId = function() {
 		return this.id;
-	};
-
-	/**
-	 * Destroys the MessageProcessor Instance
-	 * @public
-	 */
-	MessageProcessor.prototype.destroy = function() {
-		sap.ui.getCore().getMessageManager().unregisterMessageProcessor(this);
-		EventProvider.prototype.destroy.apply(this, arguments);
 	};
 
 	return MessageProcessor;

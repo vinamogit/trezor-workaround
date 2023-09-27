@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*
@@ -17,7 +17,7 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 	 *
 	 * @param sValue {string} Typed in value.
 	 * @param oInput {sap.m.Input} Input to act upon.
-	 * @param aItems {array<T>} Items to pick from.
+	 * @param aItems {Array<T>} Items to pick from.
 	 * @param vTextGetter {string|function} Name of method in oInput or a function which extracts the text.
 	 * @returns {Array<T>} A sorted array of matching items. The first item is the one that's being highlighted.
 	 */
@@ -65,9 +65,9 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 	 * A custom getter string could be provided to support further scenarios. The default one is <code>getText</code>.
 	 *
 	 * @param sTextToFilter {string}
-	 * @param aItems {array<T>}
+	 * @param aItems {Array<T>}
 	 * @param vTextGetter {string|function}
-	 * @returns {array<T>}
+	 * @returns {Array<T>}
 	 * @private
 	 */
 	function _filterItems(sTextToFilter, aItems, vTextGetter) {
@@ -103,6 +103,7 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 	 * Sorts items based on the best match. The first item is most likely to be the selected one.
 	 *
 	 * Items could have multiple texts and the sorting criteria is:
+	 * - item with text that matches exactly the input value has the highest priority
 	 * - the matching text with lower index in the array gets a higher priority
 	 * For example, if there's an array of texts: left: ["bar", "foo"], right: ["foo", "bar"] and the search is "fo",
 	 * the order would be:
@@ -110,9 +111,9 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 	 * 2. ["bar", "foo"]
 	 *
 	 * @param sTextToFilter {string}
-	 * @param aItems {array<T>}
+	 * @param aItems {Array<T>}
 	 * @param vTextGetter {string|function}
-	 * @returns {array<T>}
+	 * @returns {Array<T>}
 	 * @private
 	 */
 	function _sortItems(sTextToFilter, aItems, vTextGetter) {
@@ -128,6 +129,15 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 				for (var i = 0; i < aLeftTexts.length; i++) {
 					bLeft = _startsWithIgnoreCase(aLeftTexts[i], sTextToFilter);
 					bRight = _startsWithIgnoreCase(aRightTexts[i], sTextToFilter);
+
+					// In case of exact match always return with highest priority
+					if (aLeftTexts[i].toLowerCase() === sTextToFilter.toLowerCase()) {
+						return -1;
+					}
+
+					if (aRightTexts[i].toLowerCase() === sTextToFilter.toLowerCase()) {
+						return 1;
+					}
 
 					if (bLeft && bRight) {
 						return 0;
@@ -149,7 +159,7 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 	 *
 	 * @param oItem {Object}
 	 * @param vTextGetter {string|function}
-	 * @returns {array<string>}
+	 * @returns {Array<string>}
 	 * @private
 	 */
 	function _extractTextsFromItem(oItem, vTextGetter) {
@@ -191,7 +201,7 @@ sap.ui.define(["sap/ui/Device"], function (Device) {
 	/**
 	 * Returns the first/best match of a startsWith.
 	 *
-	 * @param aTexts {array<string>}
+	 * @param aTexts {Array<string>}
 	 * @param sSearch {string}
 	 * @returns {string}
 	 * @private

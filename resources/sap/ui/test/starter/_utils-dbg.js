@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -123,7 +123,10 @@ sap.ui.define([
 		coverage: {
 			only: null,
 			never: null,
-			branchTracking: false
+			branchTracking: false,
+			// "auto" checks for istanbul middleware and loads istanbul instrumentation, otherwise blanket is used.
+			// The other options set explicitly the desired instrumenter.
+			instrumenter: "auto" // blanket, istanbul, auto (default)
 		},
 		ui5: {
 			bindingSyntax: 'complex',

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -11,6 +11,8 @@ sap.ui.define([
 	"sap/ui/core/IconPool",
 	"sap/ui/base/EventProvider",
 	"sap/ui/base/ManagedObjectObserver",
+	"sap/ui/Device",
+	"sap/ui/core/ShortcutHintsMixin",
 	"sap/ui/core/library",
 	"sap/m/library",
 	"sap/m/OverflowToolbarButton",
@@ -20,6 +22,8 @@ sap.ui.define([
 	IconPool,
 	EventProvider,
 	ManagedObjectObserver,
+	Device,
+	ShortcutHintsMixin,
 	coreLibrary,
 	mobileLibrary,
 	OverflowToolbarButton,
@@ -39,7 +43,6 @@ sap.ui.define([
 	* @private
 	* @since 1.46.0
 	* @alias sap.f.semantic.SemanticShareMenu
-	* @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	*/
 	var SemanticShareMenu = SemanticContainer.extend("sap.f.semantic.SemanticShareMenu", {
 		constructor : function(oContainer, oParent) {
@@ -101,7 +104,7 @@ sap.ui.define([
 	};
 
 	SemanticShareMenu.prototype.getCustomActions = function() {
-		return this._aCustomShareActions;
+		return this._aCustomShareActions.slice();
 	};
 
 	SemanticShareMenu.prototype.indexOfCustomAction = function(oCustomControl) {
@@ -217,7 +220,7 @@ sap.ui.define([
 	/*
 	* Returns the current mode - <code>initial</code>, <code>button</code> or <code>actionSheet</code>.
 	*
-	* @returns {String}
+	* @returns {string}
 	*/
 	SemanticShareMenu.prototype._getMode = function() {
 		return this._mode;
@@ -227,7 +230,7 @@ sap.ui.define([
 	/*
 	 * Sets the <code>ShareMenu</code> mode - <code>initial</code>, <code>button</code> or <code>actionSheet</code>.
 	 *
-	 * @param {String} sMode
+	 * @param {string} sMode
 	 * @returns {this}
 	 */
 	SemanticShareMenu.prototype._setMode = function (sMode) {
@@ -295,19 +298,32 @@ sap.ui.define([
 	* @returns {sap.m.Button}
 	*/
 	SemanticShareMenu.prototype._getShareMenuButton = function() {
-		var oContainer = this._getContainer();
+		var oContainer, oResourceBundle, sShortcutKey;
 
 		if (!this._oShareMenuBtn) {
+			oContainer = this._getContainer();
+			oResourceBundle = sap.ui.getCore().getLibraryResourceBundle("sap.f");
+			sShortcutKey = "SEMANTIC_CONTROL_ACTION_SHARE_SHORTCUT"; // Ctrl+Shift+S
+
+			if (Device.os.macintosh) {
+				sShortcutKey += "_MAC"; // Cmd+Shift+S
+			}
+
 			this._oShareMenuBtn = new OverflowToolbarButton(oContainer.getId() + "-shareButton", {
 				ariaHasPopup: AriaHasPopup.Menu,
 				icon: IconPool.getIconURI("action"),
-				tooltip: sap.ui.getCore().getLibraryResourceBundle("sap.f").getText("SEMANTIC_CONTROL_ACTION_SHARE"),
+				tooltip: oResourceBundle.getText("SEMANTIC_CONTROL_ACTION_SHARE"),
 				layoutData: new OverflowToolbarLayoutData({
 					closeOverflowOnInteraction: false
 				}),
-				text: sap.ui.getCore().getLibraryResourceBundle("sap.f").getText("SEMANTIC_CONTROL_ACTION_SHARE"),
+				text: oResourceBundle.getText("SEMANTIC_CONTROL_ACTION_SHARE"),
 				type: ButtonType.Transparent,
 				press: this._onShareButtonClickRef
+			});
+
+			ShortcutHintsMixin.addConfig(this._oShareMenuBtn, {
+				addAccessibilityLabel: true,
+				message: oResourceBundle.getText(sShortcutKey)
 			});
 		}
 
@@ -317,8 +333,8 @@ sap.ui.define([
 	/*
 	* Determines the insert index of the custom controls to be added.
 	*
-	* @param {Number} iIndex
-	* @returns {Number}
+	* @param {int} iIndex
+	* @returns {int}
 	*/
 	SemanticShareMenu.prototype._getCustomActionInsertIndex = function(iIndex) {
 		var iCustomActionsCount = this._aCustomShareActions.length;
@@ -336,7 +352,7 @@ sap.ui.define([
 	* Determines the insert index of the semantic controls to be added.
 	*
 	* @param {sap.f.semantic.SemanticControl} oSemanticControl
-	* @returns {Number}
+	* @returns {int}
 	*/
 	SemanticShareMenu.prototype._getSemanticActionInsertIndex = function(oSemanticControl) {
 		this._aShareMenuActions.sort(this._sortControlByOrder.bind(this));

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -9,11 +9,14 @@ sap.ui.define([
 	"sap/ui/core/Configuration",
 	"./TimePickerClockRenderer",
 	"sap/ui/Device",
-	"sap/ui/events/KeyCodes",
 	"sap/ui/thirdparty/jquery"
 ],
-	function(Control, Configuration, TimePickerClockRenderer, Device, KeyCodes, jQuery) {
+	function(Control, Configuration, TimePickerClockRenderer, Device, jQuery) {
 		"use strict";
+
+		var ANIMATION_DURATION_MAX = 200,	// total animation duration, without the delay before firing the event
+			ANIMATION_DELAY_EVENT = 100,	// delay before firing the event
+			LONG_TOUCH_DURATION = 1000;		// duration for long-touch interaction
 
 		/**
 		 * Constructor for a new <code>TimePickerClock</code>.
@@ -26,18 +29,13 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @private
 		 * @since 1.90
 		 * @alias sap.m.TimePickerClock
 		 */
-
-		var ANIMATION_DURATION_MAX = 200,	// total animation duration, without the delay before firing the event
-			ANIMATION_DELAY_EVENT = 100,	// delay before firing the event
-			LONG_TOUCH_DURATION = 1000;		// duration for long-touch interaction
-
 		var TimePickerClock = Control.extend("sap.m.TimePickerClock", /** @lends sap.m.TimePickerClock.prototype */ {
 			metadata: {
 				library: "sap.m",
@@ -536,7 +534,7 @@ sap.ui.define([
 		 * @private
 		 */
 		TimePickerClock.prototype._onTouchEnd = function(oEvent) {
-			var oAnimationMode = sap.ui.getCore().getConfiguration().getAnimationMode(),
+			var oAnimationMode = Configuration.getAnimationMode(),
 				bSkipAnimation = oAnimationMode === Configuration.AnimationMode.none || oAnimationMode === Configuration.AnimationMode.minimal;
 
 			if (!this._mouseOrTouchDown) {
@@ -564,7 +562,7 @@ sap.ui.define([
 		 *
 		 * @private
 		 */
-		 TimePickerClock.prototype._resetLongTouch = function() {
+		TimePickerClock.prototype._resetLongTouch = function() {
 			if (this._longTouchId) {
 				clearTimeout(this._longTouchId);
 			}
@@ -573,10 +571,9 @@ sap.ui.define([
 		/**
 		 * Starts new long touch period.
 		 *
-		 * @param {boolean} bStartNew Whether to start new long touch period after clearing previous one
 		 * @private
 		 */
-		 TimePickerClock.prototype._startLongTouch = function() {
+		TimePickerClock.prototype._startLongTouch = function() {
 			this._longTouchId = setTimeout(function() {
 				var iValue = this._iSelectedValue;
 				this._longTouchId = null;
@@ -584,7 +581,7 @@ sap.ui.define([
 					this._toggle2400();
 				}
 			}.bind(this), LONG_TOUCH_DURATION);
-		 };
+		};
 
 		/**
 		 * Returns real maximum value of the clock items depending on existing of inner items.
@@ -605,7 +602,7 @@ sap.ui.define([
 		 * @returns {this} the clock object for chaining
 		 * @private
 		 */
-		 TimePickerClock.prototype._toggle2400 = function(bSkipSelection) {
+		TimePickerClock.prototype._toggle2400 = function(bSkipSelection) {
 			var bIs24HoursVisible = this._get24HoursVisible(),
 				iValue = bIs24HoursVisible ? 0 : 24;
 			this._cancelTouchOut = true;

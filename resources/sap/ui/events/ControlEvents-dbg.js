@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
@@ -64,7 +64,7 @@ sap.ui.define([
 	/**
 	 * Binds all events for listening with the given callback function.
 	 *
-	 * @param {function} fnCallback Callback function
+	 * @param {function(Event)} fnCallback Callback function
 	 * @static
 	 * @public
 	 */
@@ -77,7 +77,7 @@ sap.ui.define([
 	/**
 	 * Unbinds all events for listening with the given callback function.
 	 *
-	 * @param {function} fnCallback Callback function
+	 * @param {function(Event)} fnCallback Callback function
 	 * @static
 	 * @public
 	 */

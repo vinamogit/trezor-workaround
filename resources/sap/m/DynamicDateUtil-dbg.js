@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -8,9 +8,12 @@
 sap.ui.define([
 	"./StandardDynamicDateOption",
 	"sap/base/Log",
-	"./library"
+	"./library",
+	'sap/ui/core/format/TimezoneUtil',
+	'sap/ui/core/Core',
+	'sap/ui/core/date/UI5Date'
 ], function(
-	StandardDynamicDateOption, Log, library) {
+	StandardDynamicDateOption, Log, library, TimezoneUtil, Core, UI5Date) {
 	"use strict";
 
 	var STANDARD_KEYS_ARRAY = [
@@ -27,16 +30,23 @@ sap.ui.define([
 		"LASTDAYQUARTER",
 		"FIRSTDAYYEAR",
 		"LASTDAYYEAR",
+		"DATETIMERANGE",
+		"FROMDATETIME",
+		"TODATETIME",
 		"DATERANGE",
 		"FROM",
 		"TO",
 		"YEARTODATE",
 		"DATETOYEAR",
+		"LASTMINUTES",
+		"LASTHOURS",
 		"LASTDAYS",
 		"LASTWEEKS",
 		"LASTMONTHS",
 		"LASTQUARTERS",
 		"LASTYEARS",
+		"NEXTMINUTES",
+		"NEXTHOURS",
 		"NEXTDAYS",
 		"NEXTWEEKS",
 		"NEXTMONTHS",
@@ -67,13 +77,11 @@ sap.ui.define([
 	];
 
 	/**
-	 * @class
 	 * The DynamicDateUtil is a utility class for working with the DynamicDateOption instances.
 	 *
+	 * @namespace
 	 * @alias sap.m.DynamicDateUtil
-	 * @static
-	 * @public
-	 * @experimental Since 1.92. This class is experimental and provides only limited functionality. Also the API might be changed in future.
+	 * @protected
 	 */
 	var DynamicDateUtil = {
 		_options: {
@@ -100,11 +108,15 @@ sap.ui.define([
 			"NEXTMONTH": new StandardDynamicDateOption({ key: "NEXTMONTH", valueTypes: [] }),
 			"NEXTQUARTER": new StandardDynamicDateOption({ key: "NEXTQUARTER", valueTypes: [] }),
 			"NEXTYEAR": new StandardDynamicDateOption({ key: "NEXTYEAR", valueTypes: [] }),
+			"LASTMINUTES": new StandardDynamicDateOption({ key: "LASTMINUTES", valueTypes: ["int"] }),
+			"LASTHOURS": new StandardDynamicDateOption({ key: "LASTHOURS", valueTypes: ["int"] }),
 			"LASTDAYS": new StandardDynamicDateOption({ key: "LASTDAYS", valueTypes: ["int"] }),
 			"LASTWEEKS": new StandardDynamicDateOption({ key: "LASTWEEKS", valueTypes: ["int"] }),
 			"LASTMONTHS": new StandardDynamicDateOption({ key: "LASTMONTHS", valueTypes: ["int"] }),
 			"LASTQUARTERS": new StandardDynamicDateOption({ key: "LASTQUARTERS", valueTypes: ["int"] }),
 			"LASTYEARS": new StandardDynamicDateOption({ key: "LASTYEARS", valueTypes: ["int"] }),
+			"NEXTMINUTES": new StandardDynamicDateOption({ key: "NEXTMINUTES", valueTypes: ["int"] }),
+			"NEXTHOURS": new StandardDynamicDateOption({ key: "NEXTHOURS", valueTypes: ["int"] }),
 			"NEXTDAYS": new StandardDynamicDateOption({ key: "NEXTDAYS", valueTypes: ["int"] }),
 			"NEXTWEEKS": new StandardDynamicDateOption({ key: "NEXTWEEKS", valueTypes: ["int"] }),
 			"NEXTMONTHS": new StandardDynamicDateOption({ key: "NEXTMONTHS", valueTypes: ["int"] }),
@@ -112,6 +124,8 @@ sap.ui.define([
 			"NEXTYEARS": new StandardDynamicDateOption({ key: "NEXTYEARS", valueTypes: ["int"] }),
 			"FROM": new StandardDynamicDateOption({ key: "FROM", valueTypes: ["date"] }),
 			"TO": new StandardDynamicDateOption({ key: "TO", valueTypes: ["date"] }),
+			"FROMDATETIME": new StandardDynamicDateOption({ key: "FROMDATETIME", valueTypes: ["datetime"] }),
+			"TODATETIME": new StandardDynamicDateOption({ key: "TODATETIME", valueTypes: ["datetime"] }),
 			"YEARTODATE": new StandardDynamicDateOption({ key: "YEARTODATE", valueTypes: [] }),
 			"DATETOYEAR": new StandardDynamicDateOption({ key: "DATETOYEAR", valueTypes: [] }),
 			"TODAYFROMTO": new StandardDynamicDateOption({ key: "TODAYFROMTO", valueTypes: ["int", "int"] }),
@@ -120,8 +134,11 @@ sap.ui.define([
 			"QUARTER3": new StandardDynamicDateOption({ key: "QUARTER3", valueTypes: [] }),
 			"QUARTER4": new StandardDynamicDateOption({ key: "QUARTER4", valueTypes: [] }),
 			"SPECIFICMONTH": new StandardDynamicDateOption({ key: "SPECIFICMONTH", valueTypes: ["int"] }),
+			"SPECIFICMONTHINYEAR": new StandardDynamicDateOption({ key: "SPECIFICMONTHINYEAR", valueTypes: ["int", "int"] }),
 			"DATERANGE": new StandardDynamicDateOption({ key: "DATERANGE", valueTypes: ["date", "date"] }),
-			"DATE": new StandardDynamicDateOption({ key: "DATE", valueTypes: ["date"] })
+			"DATE": new StandardDynamicDateOption({ key: "DATE", valueTypes: ["date"] }),
+			"DATETIME": new StandardDynamicDateOption({ key: "DATETIME", valueTypes: ["datetime"] }),
+			"DATETIMERANGE": new StandardDynamicDateOption({ key: "DATETIMERANGE", valueTypes: ["datetime", "datetime"] })
 		},
 		_allKeys: STANDARD_KEYS_ARRAY.slice(0)
 	};
@@ -182,13 +199,13 @@ sap.ui.define([
 	};
 
 	/**
-	 * Parses a string to an array of objects in the DynamicDateRange's value format.
+	 * Parses a string to an array of objects of type <code>sap.m.DynamicDateRangeValue</code>.
 	 * Uses the provided formatter.
 	 *
 	 * @param {string} sValue The string to be parsed
 	 * @param {sap.m.DynamicDateFormat} oFormatter A dynamic date formatter
-	 * @param {array} aOptionKeys array of option names
-	 * @returns {object[]} An array of value objects in the DynamicDateRange's value format
+	 * @param {string[]} aOptionKeys array of option names
+	 * @returns {sap.m.DynamicDateRangeValue[]} An array of <code>sap.m.DynamicDateRangeValue</code> objects
 	 * @static
 	 * @public
 	 */
@@ -226,13 +243,33 @@ sap.ui.define([
 	 * Calculates a date range from a provided object in the format of the DynamicDateRange's value.
 	 *
 	 * @param {string} oValue The provided value
+	 * @param {string} sCalendarWeekNumbering The type of calendar week numbering
 	 * @returns {sap.ui.core.date.UniversalDate[]} An array of two date objects - start and end date
 	 * @static
 	 * @public
 	 */
-	DynamicDateUtil.toDates = function(oValue) {
+	DynamicDateUtil.toDates = function(oValue, sCalendarWeekNumbering) {
 		var sKey = oValue.operator;
-		return DynamicDateUtil._options[sKey].toDates(oValue);
+		return DynamicDateUtil._options[sKey].toDates(oValue, sCalendarWeekNumbering);
+	};
+
+
+	/**
+	 * Returns a date in machine timezone setting, removing the offset added by the application configuration.
+	 *
+	 * @param {Date} oDate A local JS date with added offset
+	 * @returns {Date} A local JS date with removed offset
+	 * @static
+	 * @public
+	 */
+	DynamicDateUtil.removeTimezoneOffset = function(oDate) {
+		var oNewDate = UI5Date.getInstance(oDate);
+		var sTimezone = Core.getConfiguration().getTimezone();
+		var iOffsetInSeconds = TimezoneUtil.calculateOffset(oNewDate, sTimezone) - oNewDate.getTimezoneOffset() * 60;
+
+		oNewDate.setSeconds(oNewDate.getSeconds() - iOffsetInSeconds);
+
+		return oNewDate;
 	};
 
 	return DynamicDateUtil;

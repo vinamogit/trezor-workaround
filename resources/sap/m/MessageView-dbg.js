@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -24,6 +24,7 @@ sap.ui.define([
 	"./Link",
 	"./MessageItem",
 	"./GroupHeaderListItem",
+	'sap/ui/core/InvisibleText',
 	"sap/ui/core/library",
 	"sap/ui/base/ManagedObject",
 	"./MessageViewRenderer",
@@ -51,6 +52,7 @@ sap.ui.define([
 	Link,
 	MessageItem,
 	GroupHeaderListItem,
+	InvisibleText,
 	coreLibrary,
 	ManagedObject,
 	MessageViewRenderer,
@@ -112,7 +114,7 @@ sap.ui.define([
 	 * The responsiveness of the <code>MessageView</code> is determined by the container in which it is embedded. For that reason the control could not be visualized if the
 	 * container’s sizes are not defined.
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @extends sap.ui.core.Control
 	 * @constructor
@@ -120,7 +122,6 @@ sap.ui.define([
 	 * @since 1.46
 	 * @alias sap.m.MessageView
 	 * @see {@link fiori:https://experience.sap.com/fiori-design-web/message-view/ Message View}
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var MessageView = Control.extend("sap.m.MessageView", /** @lends sap.m.MessageView.prototype */ {
 		metadata: {
@@ -130,24 +131,24 @@ sap.ui.define([
 				 * Callback function for resolving a promise after description has been asynchronously loaded inside this function.
 				 * @callback sap.m.MessageView~asyncDescriptionHandler
 				 * @param {object} config A single parameter object
-				 * @param {MessagePopoverItem} config.item Reference to respective MessagePopoverItem instance
+				 * @param {sap.m.MessageItem} config.item Reference to respective MessageItem instance
 				 * @param {object} config.promise Object grouping a promise's reject and resolve methods
 				 * @param {function} config.promise.resolve Method to resolve promise
 				 * @param {function} config.promise.reject Method to reject promise
 				 */
-				asyncDescriptionHandler: {type: "any", group: "Behavior", defaultValue: null},
+				asyncDescriptionHandler: {type: "function", group: "Behavior", defaultValue: null},
 
 				/**
 				 * Callback function for resolving a promise after a link has been asynchronously validated inside this function.
 				 * @callback sap.m.MessageView~asyncURLHandler
 				 * @param {object} config A single parameter object
 				 * @param {string} config.url URL to validate
-				 * @param {string|Int} config.id ID of the validation job
+				 * @param {string|int} config.id ID of the validation job
 				 * @param {object} config.promise Object grouping a promise's reject and resolve methods
 				 * @param {function} config.promise.resolve Method to resolve promise
 				 * @param {function} config.promise.reject Method to reject promise
 				 */
-				asyncURLHandler: {type: "any", group: "Behavior", defaultValue: null},
+				asyncURLHandler: {type: "function", group: "Behavior", defaultValue: null},
 
 				/**
 				 * Defines whether the MessageItems are grouped or not.
@@ -240,7 +241,9 @@ sap.ui.define([
 					}
 				}
 			}
-		}
+		},
+
+		renderer: MessageViewRenderer
 	});
 
 	var CSS_CLASS = "sapMMsgView";
@@ -367,25 +370,13 @@ sap.ui.define([
 	 * @private
 	 */
 	MessageView.prototype._setItemType = function (oListItem) {
-		var sSelector,
-			bActiveTitle = oListItem.getActiveTitle();
+		var oItemTitleRef = oListItem.getTitleRef();
 
-		if (!oListItem.getTitle() || !oListItem.getDescription()) {
-			if (bActiveTitle) {
-				sSelector = ".sapMSLITitleOnly a";
-			} else {
-				sSelector = ".sapMSLITitleOnly";
-			}
-		} else if (bActiveTitle) {
-			sSelector = ".sapMSLITitle a";
-		} else {
-			sSelector = ".sapMSLITitle";
-		}
+		if (oItemTitleRef &&  (oItemTitleRef.offsetWidth < oItemTitleRef.scrollWidth)) {
 
-		var oItemDomRef = oListItem.getDomRef().querySelector(sSelector);
-
-		if (oItemDomRef.offsetWidth < oItemDomRef.scrollWidth) {
+			// if title's text overflows, make the item type Navigation
 			oListItem.setType(ListType.Navigation);
+
 			if (this.getItems().length === 1) {
 				this._fnHandleForwardNavigation(oListItem, "show");
 			}
@@ -429,6 +420,8 @@ sap.ui.define([
 
 			// TODO: adopt this to NavContainer's public API once a parameter for back navigation transition name is available
 			this._navContainer._pageStack[this._navContainer._pageStack.length - 1].transition = "slide";
+		} else if (aListItems.length === 0) {
+			this._navContainer.backToTop();
 		}
 
 		// Bind automatically to the MessageModel if no items are bound
@@ -609,13 +602,16 @@ sap.ui.define([
 			content: "<span id=\"" + sCloseBtnDescrId + "\" class=\"sapMMsgViewHiddenContainer\">" + sCloseBtnDescr + "</span>"
 		});
 
-		var sHeadingDescr = this._oResourceBundle.getText("MESSAGEPOPOVER_ARIA_HEADING");
-		var sHeadingDescrId = this.getId() + "-HeadingDescr";
-		var oHeadingARIAHiddenDescr = new HTML(sHeadingDescrId, {
+		var sHeadingDescr = this._oResourceBundle.getText("MESSAGEPOPOVER_ARIA_HEADING"),
+		sHeadingDescrId = this.getId() + "-HeadingDescr",
+		sSegmentedBtnDescrId = InvisibleText.getStaticId("sap.m", "MESSAGEVIEW_SEGMENTED_BTN_DESCRIPTION"),
+		oHeadingARIAHiddenDescr = new HTML(sHeadingDescrId, {
 			content: "<span id=\"" + sHeadingDescrId + "\" class=\"sapMMsgViewHiddenContainer\" role=\"heading\">" + sHeadingDescr + "</span>"
 		});
 
-		this._oSegmentedButton = new SegmentedButton(this.getId() + "-segmented", {}).addStyleClass("sapMSegmentedButtonNoAutoWidth");
+		this._oSegmentedButton = new SegmentedButton(this.getId() + "-segmented", {
+			ariaLabelledBy: sSegmentedBtnDescrId
+		}).addStyleClass("sapMSegmentedButtonNoAutoWidth");
 
 		this._oListHeader = new Toolbar({
 			content: [this._oSegmentedButton, new ToolbarSpacer(), oCloseBtnARIAHiddenDescr, oHeadingARIAHiddenDescr]
@@ -790,7 +786,7 @@ sap.ui.define([
 				counter: oMessageItem.getCounter(),
 				icon: this._mapIcon(sType),
 				infoState: this._mapInfoState(sType),
-				info: "\r", // There should be a content in the info property in order to use the info states
+				info: "",
 				type: listItemType,
 				messageType: oMessageItem.getType(),
 				activeTitle: oMessageItem.getActiveTitle(),
@@ -900,7 +896,7 @@ sap.ui.define([
 			if (iCount > 0) {
 				oButton = new Button(this.getId() + "-" + sListName, {
 					text: sListName == "all" ? this._oResourceBundle.getText(sBundleText) : iCount,
-					tooltip: this._oResourceBundle.getText(sBundleText),
+					tooltip: sListName === "all" ? "" : this._oResourceBundle.getText(sBundleText),
 					icon: ICONS[sListName],
 					press: pressClosure(sListName)
 				}).addStyleClass(CSS_CLASS + "Btn" + sListName.charAt(0).toUpperCase() + sListName.slice(1));
@@ -1113,7 +1109,7 @@ sap.ui.define([
 
 				// first check if there is a class attribute and enrich it with 'sapMMsgViewItemDisabledLink'
 				// else, add proper class
-				var sClasses = "sapMMsgViewItemDisabledLink sapMMsgViewItemPendingLink";
+				var sClasses = "sapMMsgViewItemDisabledLink sapMMsgViewItemPendingLink sapMLnk";
 				var indexOfClass = attrs.indexOf("class");
 				if (indexOfClass > -1) {
 					attrs[indexOfClass + 1] += sClasses;
@@ -1175,12 +1171,11 @@ sap.ui.define([
 	 * Handles click on a list item
 	 *
 	 * @param {sap.m.MessageListItem} oListItem ListItem that is pressed
-	 * @param {String} sTransiotionName name of transition could be slide, show, flip or fade
+	 * @param {string} sTransiotionName name of transition could be slide, show, flip or fade
 	 * @private
 	 */
 	MessageView.prototype._fnHandleForwardNavigation = function (oListItem, sTransiotionName) {
 		var oMessageItem = oListItem._oMessageItem,
-			aDetailsPageContent = this._detailsPage.getContent() || [],
 			asyncDescHandler = this.getAsyncDescriptionHandler();
 
 		this._previousIconTypeClass = this._previousIconTypeClass || "";
@@ -1190,7 +1185,7 @@ sap.ui.define([
 			messageTypeFilter: this._getCurrentMessageTypeFilter()
 		});
 
-		this._clearDetailsPage.call(this, aDetailsPageContent);
+		this._clearDetailsPage.call(this);
 
 		if (typeof asyncDescHandler === "function" && oMessageItem.getLongtextUrl()) {
 			// Set markupDescription to true as markup description should be processed as markup
@@ -1204,6 +1199,7 @@ sap.ui.define([
 			});
 
 			var proceed = function () {
+				this._clearDetailsPage.call(this);
 				this._detailsPage.setBusy(false);
 				this._navigateToDetails.call(this, oMessageItem, oListItem, sTransiotionName, true);
 			}.bind(this);
@@ -1257,8 +1253,8 @@ sap.ui.define([
 	 * @param {sap.ui.core.Control} aDetailsPageContent The details page content
 	 * @private
 	 */
-	MessageView.prototype._clearDetailsPage = function (aDetailsPageContent) {
-		aDetailsPageContent.forEach(function (oControl) {
+	MessageView.prototype._clearDetailsPage = function () {
+		this._detailsPage.getContent().forEach(function (oControl) {
 			oControl.destroy();
 		}, this);
 	};

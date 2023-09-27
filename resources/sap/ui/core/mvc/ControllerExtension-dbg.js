@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -45,7 +45,7 @@ sap.ui.define([
 			/**
 			 * Sets the controller for this extension. Accessible by the base member.
 			 *
-			 * @param {sap.ui.core.mvcController} oController The controller
+			 * @param {sap.ui.core.mvc.Controller} oController The controller
 			 * @private
 			 */
 			_setController: function(oController) {
@@ -93,7 +93,7 @@ sap.ui.define([
 			getInterface: function() {
 				var mMethods = {};
 				var oMetadata = this.getMetadata();
-				var aPublicMethods = oMetadata.getAllPublicMethods();
+				var aPublicMethods = oMetadata._aAllPublicMethods;
 
 				aPublicMethods.forEach(function(sMethod) {
 					var fnFunction = this[sMethod];
@@ -133,7 +133,7 @@ sap.ui.define([
 		 * <b>Note:</b> This static method is automatically propagated to subclasses of
 		 * <code>ControllerExtension</code>.
 		 *
-		 * @param {object} oExtension The custom extension definition
+		 * @param {Object<string, function>} oExtension The custom extension definition
 		 * @return {function} A controller extension class
 		 * @public
 		 */

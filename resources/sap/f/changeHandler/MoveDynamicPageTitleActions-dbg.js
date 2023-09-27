@@ -1,10 +1,14 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
-sap.ui.define([], function() {
+sap.ui.define([
+	"sap/ui/fl/changeHandler/condenser/Classification"
+	], function(
+		Condenser
+	) {
 	"use strict";
 
 		/**
@@ -12,7 +16,7 @@ sap.ui.define([], function() {
 		 *
 		 * @alias sap.f.changeHandler.MoveDynamicPageTitleActions
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 * @experimental Since 1.52
 		 */
 		var MoveActions = { };
@@ -33,10 +37,10 @@ sap.ui.define([], function() {
 			var oModifier = mPropertyBag.modifier;
 			var oView = mPropertyBag.view;
 			var oAppComponent = mPropertyBag.appComponent;
-			var oMovedElementInfo = oChange.getDefinition().content.movedElements[0];
+			var oMovedElementInfo = oChange.getContent().movedElements[0];
 			var iTargetIndex = oMovedElementInfo.targetIndex;
 			var oMovedElement;
-			var iOriginalIndex;
+			var iOriginalIndex = oMovedElementInfo.sourceIndex;
 
 			return Promise.resolve()
 				.then(oModifier.bySelector.bind(oModifier, oMovedElementInfo.selector, oAppComponent, oView))
@@ -48,7 +52,6 @@ sap.ui.define([], function() {
 					var oPromise;
 					aButtons.some(function(oButton, iButtonIndex) {
 						if (oModifier.getId(oButton) === oModifier.getId(oMovedElement)) {
-							iOriginalIndex = iButtonIndex;
 							oPromise = Promise.resolve()
 								.then(oModifier.removeAggregation.bind(oModifier, oControl, ACTION_AGGREGATION_NAME, oButton))
 								.then(oModifier.insertAggregation.bind(oModifier, oControl, "dependents", oButton, undefined, oView));
@@ -81,7 +84,7 @@ sap.ui.define([], function() {
 			var oModifier = mPropertyBag.modifier;
 			var oView = mPropertyBag.view;
 			var oAppComponent = mPropertyBag.appComponent;
-			var oMovedElementInfo = oChange.getDefinition().content.movedElements[0];
+			var oMovedElementInfo = oChange.getContent().movedElements[0];
 			var oRevertData = oChange.getRevertData();
 			var oMovedElement;
 			var iTargetIndex;
@@ -108,11 +111,10 @@ sap.ui.define([], function() {
 		 */
 		MoveActions.completeChangeContent = function(oChange, oSpecificChangeInfo, mPropertyBag) {
 			var oModifier = mPropertyBag.modifier,
-				oAppComponent = mPropertyBag.appComponent,
-				oChangeData = oChange.getDefinition();
+				oAppComponent = mPropertyBag.appComponent;
 
 			// We need to add the information about the movedElements together with the source and target index
-			oChangeData.content = {
+			var oContent = {
 				movedElements: [],
 				targetAggregation: oSpecificChangeInfo.target.aggregation,
 				targetContainer: oSpecificChangeInfo.selector
@@ -120,12 +122,13 @@ sap.ui.define([], function() {
 
 			oSpecificChangeInfo.movedElements.forEach(function (mElement) {
 				var oElement = mElement.element || oModifier.bySelector(mElement.id, oAppComponent);
-				oChangeData.content.movedElements.push({
+				oContent.movedElements.push({
 					selector: oModifier.getSelector(oElement, oAppComponent),
 					sourceIndex: mElement.sourceIndex,
 					targetIndex: mElement.targetIndex
 				});
 			});
+			oChange.setContent(oContent);
 		};
 
 		MoveActions.getCondenserInfo = function(oChange) {
@@ -133,7 +136,7 @@ sap.ui.define([], function() {
 			var oRevertData = oChange.getRevertData();
 			return {
 				affectedControl: oChangeContent.movedElements[0].selector,
-				classification: sap.ui.fl.condenser.Classification.Move,
+				classification: Condenser.Move,
 				sourceContainer: oRevertData.sourceParent,
 				targetContainer: oChangeContent.targetContainer,
 				sourceIndex: oRevertData.index,
@@ -144,6 +147,11 @@ sap.ui.define([], function() {
 				},
 				getTargetIndex: function(oChange) {
 					return oChange.getContent().movedElements[0].targetIndex;
+				},
+				setIndexInRevertData: function(oChange, iIndex) {
+					var oRevertData = oChange.getRevertData();
+					oRevertData.index = iIndex;
+					oChange.setRevertData(oRevertData);
 				}
 			};
 		};

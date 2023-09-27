@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 //Provides control sap.f.CalendarInCard.
@@ -8,28 +8,26 @@ sap.ui.define([
 	'sap/m/Button',
 	'sap/m/Toolbar',
 	'sap/ui/core/Core',
-	'sap/ui/core/date/UniversalDate',
 	'sap/ui/core/format/DateFormat',
 	'sap/ui/core/IconPool',
 	'sap/ui/core/InvisibleText',
-	'sap/ui/dom/containsOrEquals',
 	'sap/ui/unified/Calendar',
 	'sap/ui/unified/calendar/CalendarDate',
 	'sap/ui/unified/calendar/CalendarUtils',
-	'./CalendarInCardRenderer'
+	'./CalendarInCardRenderer',
+	"sap/ui/core/date/UI5Date"
 ], function(
 	Button,
 	Toolbar,
 	Core,
-	UniversalDate,
 	DateFormat,
 	IconPool,
 	InvisibleText,
-	containsOrEquals,
 	Calendar,
 	CalendarDate,
 	CalendarUtils,
-	CalendarRenderer
+	CalendarRenderer,
+	UI5Date
 ) {
 	"use strict";
 
@@ -45,17 +43,20 @@ sap.ui.define([
 	 * <code>sap.m.Toolbar</code> with <code>sap.m.Buttons</code>.
 	 *
 	 * @extends sap.ui.unified.Calendar
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @private
 	 * @since 1.84.0
 	 * @alias sap.f.CalendarInCard
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
-	var CalendarInCard = Calendar.extend("sap.f.CalendarInCard", /** @lends sap.f.CalendarInCard.prototype */ { metadata : {
-			library : "sap.f"
-		}});
+	var CalendarInCard = Calendar.extend("sap.f.CalendarInCard", /** @lends sap.f.CalendarInCard.prototype */ {
+		metadata : {
+				library : "sap.f"
+			},
+
+		renderer: CalendarRenderer
+	});
 
 	/*
 	 * There are different modes (stored in this._iMode)
@@ -179,7 +180,7 @@ sap.ui.define([
 	 * @private
 	 */
 	CalendarInCard.prototype._handleTodayPress = function () {
-		var oDate = new Date(),
+		var oDate = UI5Date.getInstance(),
 			oCalDate = CalendarDate.fromLocalJSDate(oDate);
 
 		this.getAggregation("month")[0].setDate(oDate);
@@ -274,6 +275,7 @@ sap.ui.define([
 		this.setProperty("_currentPicker", "monthPicker");
 
 		oMonthPicker._setYear(oDate.getYear());
+		oMonthPicker._setDate(oDate);
 
 		if (!bSkipFocus){
 			oMonthPicker.setMonth(oDate.getMonth());
@@ -423,7 +425,7 @@ sap.ui.define([
 	 * @private
 	 */
 	CalendarInCard.prototype._dateMatchesVisibleRange = function() {
-		var oCalNewDate = CalendarDate.fromLocalJSDate(new Date()),
+		var oCalNewDate = CalendarDate.fromLocalJSDate(UI5Date.getInstance()),
 			oSelectedDate,
 			bIsSameDate,
 			oYearRangePicker,
@@ -442,7 +444,7 @@ sap.ui.define([
 			case 3: // year range picker
 				oYearRangePicker = this._getYearRangePicker();
 				oYearRangePickerDate = oYearRangePicker.getDate();
-				oStartDate = new Date(oYearRangePickerDate.getFullYear() + (oYearRangePicker.getRangeSize() / 2),
+				oStartDate = UI5Date.getInstance(oYearRangePickerDate.getFullYear() + (oYearRangePicker.getRangeSize() / 2),
 					oYearRangePickerDate.getMonth(), oYearRangePickerDate.getDate());
 				return CalendarUtils._isSameMonthAndYear(CalendarDate.fromLocalJSDate(oStartDate),
 					oCalNewDate);

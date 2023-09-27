@@ -1,17 +1,15 @@
-/*
- * ! OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+/*!
+ * OpenUI5
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
-	'sap/ui/core/Core',
 	'./ColumnPopoverItem',
 	'sap/m/ToggleButton',
 	'sap/m/Button',
 	'sap/m/StandardListItem',
 	'sap/m/List'],
 	function(
-		Core,
 		ColumnPopoverItem,
 		ToggleButton,
 		Button,
@@ -29,7 +27,7 @@ sap.ui.define([
 	 * @extends sap.m.ColumnPopoverItem
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @since 1.86
@@ -38,8 +36,8 @@ sap.ui.define([
 	 */
 	var ColumnPopoverSelectListItem = ColumnPopoverItem.extend("sap.m.ColumnPopoverSelectListItem", /** @lends sap.m.ColumnPopoverSelectListItem.prototype */
 	{
-		library: "sap.m",
 		metadata: {
+			library: "sap.m",
 			properties: {
 				/**
 				 * Label to be displayed as toolTip by the control

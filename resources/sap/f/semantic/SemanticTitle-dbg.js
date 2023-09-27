@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -19,7 +19,6 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	 * @private
 	 * @since 1.46.0
 	 * @alias sap.f.semantic.SemanticTitle
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var SemanticTitle = SemanticContainer.extend("sap.f.semantic.SemanticTitle", {
 		constructor : function(oContainer, oParent) {
@@ -48,7 +47,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	* Adds <code>sap.f.semantic.SemanticControl</code> to the container.
 	*
 	* @param {sap.f.semantic.SemanticControl} oSemanticControl
-	* @param {String} sPlacement
+	* @param {string} sPlacement
 	* @returns {sap.f.semantic.SemanticFooter}
 	*/
 	SemanticTitle.prototype.addContent = function(oSemanticControl, sPlacement) {
@@ -60,7 +59,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	* Removes the <code>sap.f.semantic.SemanticControl</code> from the container.
 	*
 	* @param {sap.f.semantic.SemanticControl} oSemanticControl
-	* @param {String} sPlacement
+	* @param {string} sPlacement
 	* @returns {sap.f.semantic.SemanticFooter}
 	*/
 	SemanticTitle.prototype.removeContent = function(oSemanticControl, sPlacement) {
@@ -136,7 +135,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	};
 
 	SemanticTitle.prototype.getCustomTextActions = function() {
-		return this._aCustomTextActions;
+		return this._aCustomTextActions.slice();
 	};
 
 	/*
@@ -187,7 +186,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	};
 
 	SemanticTitle.prototype.getCustomIconActions = function() {
-		return this._aCustomIconActions;
+		return this._aCustomIconActions.slice();
 	};
 
 
@@ -345,7 +344,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	* based on the semantic order requirements and it is defined in <code>SemanticConfiguration</code> as well.
 	*
 	* @private
-	* @returns {Number}
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getSemanticTextMainActionInsertIndex = function() {
 		return 0;
@@ -360,8 +359,8 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	* considers the presence of the <code>MainAction</code>.
 	*
 	* @private
-	* @param {iIndex}
-	* @returns {Number}
+	* @param {int} iIndex
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getCustomTextActionInsertIndex = function(iIndex) {
 		var iCustomTextActionsCount = this._aCustomTextActions.length;
@@ -388,7 +387,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	*
 	* @private
 	* @param {sap.f.semantic.SemanticControl}
-	* @returns {Number}
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getSemanticTextActionInsertIndex = function(oSemanticControl) {
 		this._aSemanticTextActions.sort(this._sortControlByOrder.bind(this));
@@ -405,8 +404,8 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	* based on the semantic order requirements.
 	*
 	* @private
-	* @param {iIndex}
-	* @returns {Number}
+	* @param {int} iIndex
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getCustomIconActionInsertIndex = function(iIndex) {
 		var iCustomIconsCount = this._aCustomIconActions.length,
@@ -432,7 +431,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	*
 	* @private
 	* @param {sap.f.semantic.SemanticControl}
-	* @returns {Number}
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getSemanticSimpleIconActionInsertIndex = function(oSemanticControl) {
 		this._aSemanticSimpleIconActions.sort(this._sortControlByOrder.bind(this));
@@ -446,7 +445,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	*
 	* @private
 	* @param {sap.f.semantic.SemanticControl}
-	* @returns {Number}
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getSemanticNavIconActionInsertIndex = function(oSemanticControl) {
 		this._aSemanticNavIconActions.sort(this._sortControlByOrder.bind(this));
@@ -458,7 +457,7 @@ sap.ui.define(["sap/m/library", "./SemanticContainer"], function(mobileLibrary, 
 	* that is about to be added in the <code>titleIcon</code> area with constraint <code>shareIcon</code>.
 	*
 	* @private
-	* @returns {Number}
+	* @returns {int}
 	*/
 	SemanticTitle.prototype._getSemanticShareMenuInsertIndex = function() {
 		return this._callContainerAggregationMethod("getActions").length;

@@ -1,10 +1,10 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
-// Provides default renderer for controlsap.m.Avatar
+// Provides default renderer for control sap.m.Avatar
 sap.ui.define(["sap/m/library", "sap/base/security/encodeCSS"],
 	function (library, encodeCSS) {
 		"use strict";
@@ -24,14 +24,17 @@ sap.ui.define(["sap/m/library", "sap/base/security/encodeCSS"],
 			apiVersion: 2
 		};
 
+
 		/**
 		 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 		 *
 		 * @param {sap.ui.core.RenderManager} oRm the RenderManager that can be used for writing to the Render-Output-Buffer
-		 * @param {sap.ui.core.Control} oAvatar an object representation of the control that should be rendered
+		 * @param {sap.m.Avatar} oAvatar an object representation of the control that should be rendered
 		 */
 		AvatarRenderer.render = function (oRm, oAvatar) {
-			var sInitials = oAvatar.getInitials(),
+
+			var bEnabled = oAvatar.getEnabled(),
+				sInitials = oAvatar.getInitials(),
 				sActualDisplayType = oAvatar._getActualDisplayType(),
 				sImageFallbackType = oAvatar._getImageFallbackType(),
 				sDisplaySize = oAvatar.getDisplaySize(),
@@ -39,13 +42,15 @@ sap.ui.define(["sap/m/library", "sap/base/security/encodeCSS"],
 				sImageFitType = oAvatar.getImageFitType(),
 				sCustomDisplaySize = oAvatar.getCustomDisplaySize(),
 				sCustomFontSize = oAvatar.getCustomFontSize(),
-				sSrc = oAvatar.getSrc(),
+				sSrc = oAvatar._getAvatarSrc(),
 				sAvatarClass = "sapFAvatar",
 				sTooltip = oAvatar.getTooltip_AsString(),
-				aLabelledBy = oAvatar.getAriaLabelledBy(),
+				aLabelledBy = oAvatar._getAriaLabelledBy(),
 				aDescribedBy = oAvatar.getAriaDescribedBy(),
+				aHasPopup = oAvatar.getAriaHasPopup(),
 				oBadge = oAvatar.hasListeners("press") ?  oAvatar._getBadge() : null,
-				sDefaultTooltip = oAvatar._getDefaultTooltip();
+				sDefaultTooltip = oAvatar._getDefaultTooltip(),
+				sInitialsLength = sInitials.length;
 
 			oRm.openStart("span", oAvatar);
 			oRm.class(sAvatarClass);
@@ -53,16 +58,21 @@ sap.ui.define(["sap/m/library", "sap/base/security/encodeCSS"],
 			oRm.class(sAvatarClass + sDisplaySize);
 			oRm.class(sAvatarClass + sActualDisplayType);
 			oRm.class(sAvatarClass + sDisplayShape);
-			if (oAvatar.hasListeners("press")) {
-				oRm.class("sapMPointer");
-				oRm.class(sAvatarClass + "Focusable");
-				oRm.attr("role", "button");
-				oRm.attr("tabindex", 0);
-			} else if (oAvatar.getDecorative()) {
-				oRm.attr("role", "presentation");
-				oRm.attr("aria-hidden", "true");
+			if (bEnabled) {
+				if (oAvatar.hasListeners("press")) {
+					oRm.class("sapMPointer");
+					oRm.class(sAvatarClass + "Focusable");
+					oRm.attr("role", "button");
+					oRm.attr("tabindex", 0);
+				} else if (oAvatar.getDecorative()) {
+					oRm.attr("role", "presentation");
+					oRm.attr("aria-hidden", "true");
+				} else {
+					oRm.attr("role", "img");
+				}
 			} else {
-				oRm.attr("role", "img");
+				oRm.attr("disabled", "disabled");
+				oRm.class("sapMAvatarDisabled");
 			}
 			if (oAvatar.getShowBorder()) {
 				oRm.class("sapFAvatarBorder");
@@ -91,15 +101,26 @@ sap.ui.define(["sap/m/library", "sap/base/security/encodeCSS"],
 			if (aDescribedBy && aDescribedBy.length > 0) {
 				oRm.attr("aria-describedby", aDescribedBy.join(" "));
 			}
+			// aria-haspopup references
+			if (aHasPopup && aHasPopup !== "None") {
+				oRm.attr("aria-haspopup", aHasPopup.toLowerCase());
+			}
 			oRm.openEnd();
 			if (sActualDisplayType === AvatarType.Icon || sImageFallbackType === AvatarType.Icon) {
 				oRm.renderControl(oAvatar._getIcon().addStyleClass(sAvatarClass + "TypeIcon"));
-			} else if (sActualDisplayType === AvatarType.Initials || sImageFallbackType === AvatarType.Initials){
+			} else if ((sActualDisplayType === AvatarType.Initials || sImageFallbackType === AvatarType.Initials) ){
+				if (sInitialsLength === 3) {
+				//we render both icon and avatar, for the case where we have 3 initials set to the avatar and they are overflowing,
+				//in this case we want to show icon instead of the initials after the rendering of the control
+					oRm.renderControl(oAvatar._getIcon().addStyleClass(sAvatarClass + "TypeIcon").addStyleClass(sAvatarClass + "HiddenIcon"));
+				}
+
 				oRm.openStart("span");
 				oRm.class(sAvatarClass + "InitialsHolder");
 				oRm.openEnd();
 				oRm.text(sInitials);
 				oRm.close("span");
+
 			}
 			if (sActualDisplayType === AvatarType.Image) {
 				oRm.openStart("span");

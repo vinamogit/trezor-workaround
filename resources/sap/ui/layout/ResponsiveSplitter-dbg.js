@@ -1,6 +1,6 @@
 /*!
 * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
 */
 
@@ -70,7 +70,7 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
@@ -499,8 +499,8 @@ sap.ui.define([
 		aPages[iPageIndex] && aPages[iPageIndex].setVisible(true);
 		$OldSelectedButton.removeClass("sapUiResponsiveSplitterPaginatorSelectedButton");
 		$PaginatorButtons.eq(iPageIndex).addClass("sapUiResponsiveSplitterPaginatorSelectedButton");
-		$OldSelectedButton.attr("aria-checked", false);
-		$PaginatorButtons.eq(iPageIndex).attr("aria-checked", true);
+		$OldSelectedButton.attr("aria-selected", false);
+		$PaginatorButtons.eq(iPageIndex).attr("aria-selected", true);
 	};
 
 	/**

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -28,13 +28,12 @@ sap.ui.define([
 	 * @extends sap.ui.core.Element
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @since 1.16.0
 	 * @alias sap.ui.layout.form.FormContainer
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var FormContainer = Element.extend("sap.ui.layout.form.FormContainer", /** @lends sap.ui.layout.form.FormContainer.prototype */ { metadata : {
 
@@ -122,6 +121,8 @@ sap.ui.define([
 
 	FormContainer.prototype.init = function(){
 
+		this._oInitPromise = library.form.FormHelper.init();
+
 		this._rb = sap.ui.getCore().getLibraryResourceBundle("sap.ui.layout");
 
 		this._oObserver = new ManagedObjectObserver(this._observeChanges.bind(this));
@@ -149,9 +150,14 @@ sap.ui.define([
 
 		if (bExpandable) {
 			if (!this._oExpandButton) {
-				if (!this._bExpandButtonRequired) {
-					this._bExpandButtonRequired = true;
-					library.form.FormHelper.createButton.call(this, this.getId() + "--Exp", _handleExpButtonPress, _expandButtonCreated);
+				if (this._oInitPromise) {
+					// module needs to be loaded -> create Button async
+					this._oInitPromise.then(function () {
+						delete this._oInitPromise; // not longer needed as resolved
+						_expandButtonCreated.call(this, library.form.FormHelper.createButton(this.getId() + "--Exp", _handleExpButtonPress, this));
+					}.bind(this));
+				} else {
+					_expandButtonCreated.call(this, library.form.FormHelper.createButton(this.getId() + "--Exp", _handleExpButtonPress, this));
 				}
 			} else {
 				_setExpanderIcon.call(this);
@@ -241,7 +247,7 @@ sap.ui.define([
 	 * As Elements must not have a DOM reference it is not sure if one exists
 	 * If the FormContainer has a DOM representation this function returns it,
 	 * independent from the ID of this DOM element
-	 * @return {Element} The Element's DOM representation or null
+	 * @return {Element|null} The Element's DOM representation or null
 	 * @private
 	 */
 	FormContainer.prototype.getRenderedDomRef = function(){
@@ -262,7 +268,7 @@ sap.ui.define([
 	 * If the FormElement has a DOM representation this function returns it,
 	 * independent from the ID of this DOM element
 	 * @param {sap.ui.layout.form.FormElement} oElement FormElement
-	 * @return {Element} The Element's DOM representation or null
+	 * @return {Element|null} The Element's DOM representation or null
 	 * @private
 	 */
 	FormContainer.prototype.getElementRenderedDomRef = function(oElement){

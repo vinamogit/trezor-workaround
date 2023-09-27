@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 sap.ui.define([
@@ -37,12 +37,11 @@ sap.ui.define([
 	 * @extends sap.ui.core.Control
 	 *
 	 * @author SAP SE
-	 * @version 1.98.0
+	 * @version 1.118.0
 	 *
 	 * @constructor
 	 * @public
 	 * @alias sap.f.CardBase
-	 * @ui5-metamodel This control/element also will be described in the UI5 (legacy) designtime metamodel
 	 */
 	var CardBase = Control.extend("sap.f.CardBase", /** @lends sap.f.Card.prototype */ {
 		metadata: {
@@ -132,8 +131,9 @@ sap.ui.define([
 	/**
 	 * Implements sap.f.ICard interface.
 	 *
+	 * @ui5-restricted
+	 * @private
 	 * @returns {sap.f.cards.IHeader} The header of the card.
-	 * @protected
 	 */
 	CardBase.prototype.getCardHeader = function () {
 		return null;
@@ -142,8 +142,9 @@ sap.ui.define([
 	/**
 	 * Implements sap.f.ICard interface.
 	 *
+	 * @ui5-restricted
+	 * @private
 	 * @returns {sap.f.cards.HeaderPosition} The position of the header of the card.
-	 * @protected
 	 * @since 1.65
 	 */
 	CardBase.prototype.getCardHeaderPosition = function () {
@@ -153,8 +154,9 @@ sap.ui.define([
 	/**
 	 * Implements sap.f.ICard interface.
 	 *
+	 * @ui5-restricted
+	 * @private
 	 * @returns {sap.ui.core.Control} The content of the card.
-	 * @protected
 	 */
 	CardBase.prototype.getCardContent = function () {
 		return null;
@@ -167,7 +169,7 @@ sap.ui.define([
 	 * @protected
 	 */
 	CardBase.prototype.getFocusDomRef = function () {
-		return this.getCardHeader() ? this.getCardHeader().getDomRef() : this.getDomRef();
+		return this.getCardHeader() ? this.getCardHeader().getFocusDomRef() : this.getDomRef();
 	};
 
 	CardBase.prototype.onmousedown = function () {
@@ -207,7 +209,7 @@ sap.ui.define([
 			sAriaLabelledBy;
 
 		if (oHeader) {
-			oDomRef = oHeader.getDomRef();
+			oDomRef = oHeader.getFocusDomRef();
 		} else {
 			oDomRef = this.getDomRef("contentSection");
 		}
@@ -241,14 +243,29 @@ sap.ui.define([
 	 * @private
 	 */
 	CardBase.prototype._getAriaLabelledIds = function () {
-		var oHeader = this.getCardHeader(),
-			sAriaLabelledBy = "";
+		var oHeader = this.getCardHeader();
 
-		if (oHeader && oHeader._getTitle()) {
-			sAriaLabelledBy = oHeader._getTitle().getId();
+		if (oHeader) {
+			if (this._isInsideGridContainer()) {
+				return oHeader._getAriaLabelledBy();
+			}
+
+			if (oHeader._getTitle && oHeader._getTitle()) {
+				return oHeader._getTitle().getId();
+			}
 		}
 
-		return sAriaLabelledBy;
+		return this._ariaText.getId();
+	};
+
+	/**
+	 * Returns if the control is inside a sap.f.GridContainer
+	 *
+	 * @private
+	 */
+	CardBase.prototype._isInsideGridContainer = function() {
+		var oParent = this.getParent();
+		return oParent && oParent.isA("sap.f.GridContainer");
 	};
 
 	/**

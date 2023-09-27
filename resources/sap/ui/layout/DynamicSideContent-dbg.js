@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -94,7 +94,7 @@ sap.ui.define([
 		 * @extends sap.ui.core.Control
 		 *
 		 * @author SAP SE
-		 * @version 1.98.0
+		 * @version 1.118.0
 		 *
 		 * @constructor
 		 * @public
@@ -102,88 +102,92 @@ sap.ui.define([
 		 * @alias sap.ui.layout.DynamicSideContent
 		 * @see {@link fiori:https://experience.sap.com/fiori-design-web/dynamic-side-content/ Dynamic Side Content}
 		 */
-		var DynamicSideContent = Control.extend("sap.ui.layout.DynamicSideContent", /** @lends sap.ui.layout.DynamicSideContent.prototype */ { metadata : {
-			library : "sap.ui.layout",
-			properties : {
+		var DynamicSideContent = Control.extend("sap.ui.layout.DynamicSideContent", /** @lends sap.ui.layout.DynamicSideContent.prototype */ {
+			metadata : {
+				library : "sap.ui.layout",
+				properties : {
 
-				/**
-				 * Determines whether the side content is visible or hidden.
-				 *
-				 * <b>Note:</b> If both <code>showSideContent</code> and <code>showMainContent</code> properties are set to <code>true</code>,
-				 * use the <code>toggle</code> method for showing the side content on phone.
-				 */
-				showSideContent : {type : "boolean", group : "Appearance", defaultValue : true},
+					/**
+					 * Determines whether the side content is visible or hidden.
+					 *
+					 * <b>Note:</b> If both <code>showSideContent</code> and <code>showMainContent</code> properties are set to <code>true</code>,
+					 * use the <code>toggle</code> method for showing the side content on phone.
+					 */
+					showSideContent : {type : "boolean", group : "Appearance", defaultValue : true},
 
-				 /**
-				 * Determines whether the main content is visible or hidden.
-				 */
-				showMainContent : {type : "boolean", group : "Appearance", defaultValue : true},
+					 /**
+					 * Determines whether the main content is visible or hidden.
+					 */
+					showMainContent : {type : "boolean", group : "Appearance", defaultValue : true},
 
-				/**
-				 * Determines on which breakpoints the side content is visible.
-				 */
-				sideContentVisibility : {type : "sap.ui.layout.SideContentVisibility", group : "Appearance", defaultValue : SideContentVisibility.ShowAboveS},
+					/**
+					 * Determines on which breakpoints the side content is visible.
+					 */
+					sideContentVisibility : {type : "sap.ui.layout.SideContentVisibility", group : "Appearance", defaultValue : SideContentVisibility.ShowAboveS},
 
-				/**
-				 * Determines on which breakpoints the side content falls down below the main content.
-				 */
-				sideContentFallDown : {type : "sap.ui.layout.SideContentFallDown", group : "Appearance", defaultValue : SideContentFallDown.OnMinimumWidth},
+					/**
+					 * Determines on which breakpoints the side content falls down below the main content.
+					 */
+					sideContentFallDown : {type : "sap.ui.layout.SideContentFallDown", group : "Appearance", defaultValue : SideContentFallDown.OnMinimumWidth},
 
-				/**
-				 * Defines whether the control is in equal split mode. In this mode, the side and the main content
-				 * take 50:50 percent of the container on all screen sizes except for phone, where the main and
-				 * side contents are switching visibility using the toggle method.
-				 */
-				equalSplit : {type : "boolean", group : "Appearance", defaultValue : false},
+					/**
+					 * Defines whether the control is in equal split mode. In this mode, the side and the main content
+					 * take 50:50 percent of the container on all screen sizes except for phone, where the main and
+					 * side contents are switching visibility using the toggle method.
+					 */
+					equalSplit : {type : "boolean", group : "Appearance", defaultValue : false},
 
-				/**
-				 * If set to TRUE, then not the media Query (device screen size) but the size of the container, surrounding the control, defines the current range.
-				 */
-				containerQuery : {type : "boolean", group : "Behavior", defaultValue : false},
+					/**
+					 * If set to TRUE, then not the media Query (device screen size) but the size of the container, surrounding the control, defines the current range.
+					 */
+					containerQuery : {type : "boolean", group : "Behavior", defaultValue : false},
 
-				/**
-				 * Determines whether the side content is on the left or on the right side of the main content.
-				 * @since 1.36
-				 */
-				sideContentPosition : {type : "sap.ui.layout.SideContentPosition", group : "Appearance", defaultValue : SideContentPosition.End},
+					/**
+					 * Determines whether the side content is on the left or on the right side of the main content.
+					 * @since 1.36
+					 */
+					sideContentPosition : {type : "sap.ui.layout.SideContentPosition", group : "Appearance", defaultValue : SideContentPosition.End},
 
-				/**
-				 * Defiles the main content span size
-				 */
-				mcSpan: { type: "int", defaultValue: 0, visibility: "hidden" },
+					/**
+					 * Defiles the main content span size
+					 */
+					mcSpan: { type: "int", defaultValue: 0, visibility: "hidden" },
 
-				/**
-				 * Defines the side content span size
-				 */
-				scSpan: { type: "int", defaultValue: 0, visibility: "hidden" }
-			},
-			defaultAggregation : "mainContent",
-			events : {
-				/**
-				 * Fires when the current breakpoint has been changed.
-				 * @since 1.32
-				 */
-				breakpointChanged : {
-					parameters : {
-						currentBreakpoint : {type : "string"}
+					/**
+					 * Defines the side content span size
+					 */
+					scSpan: { type: "int", defaultValue: 0, visibility: "hidden" }
+				},
+				defaultAggregation : "mainContent",
+				events : {
+					/**
+					 * Fires when the current breakpoint has been changed.
+					 * @since 1.32
+					 */
+					breakpointChanged : {
+						parameters : {
+							currentBreakpoint : {type : "string"}
+						}
 					}
-				}
-			},
-			aggregations : {
+				},
+				aggregations : {
 
-				/**
-				 * Main content controls.
-				 */
-				mainContent : {type: "sap.ui.core.Control", multiple:  true},
+					/**
+					 * Main content controls.
+					 */
+					mainContent : {type: "sap.ui.core.Control", multiple:  true},
 
-				/**
-				 * Side content controls.
-				 */
-				sideContent : {type: "sap.ui.core.Control", multiple:  true}
+					/**
+					 * Side content controls.
+					 */
+					sideContent : {type: "sap.ui.core.Control", multiple:  true}
+				},
+				designTime: "sap/ui/layout/designtime/DynamicSideContent.designtime",
+				dnd: { draggable: false, droppable: true }
 			},
-			designTime: "sap/ui/layout/designtime/DynamicSideContent.designtime",
-			dnd: { draggable: false, droppable: true }
-		}});
+
+			renderer: DynamicSideContentRenderer
+		});
 
 		var	S = "S",
 			M = "M",
@@ -210,7 +214,7 @@ sap.ui.define([
 		 * Sets the sideContentVisibility property.
 		 * @param {sap.ui.layout.SideContentVisibility} sVisibility Determines on which breakpoints the side content is visible.
 		 * @param {boolean} bSuppressVisualUpdate Determines if the visual state is updated
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @override
 		 * @public
 		 */
@@ -228,7 +232,7 @@ sap.ui.define([
 		 * Sets the showSideContent property.
 		 * @param {boolean} bVisible Determines if the side content part is visible
 		 * @param {boolean} bSuppressVisualUpdate Determines if the visual state is updated
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @override
 		 * @public
 		 */
@@ -253,7 +257,7 @@ sap.ui.define([
 		 * Sets the showMainContent property.
 		 * @param {boolean} bVisible Determines if the main content part is visible
 		 * @param {boolean} bSuppressVisualUpdate Determines if the visual state is updated
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @override
 		 * @public
 		 */
@@ -303,7 +307,7 @@ sap.ui.define([
 		/**
 		 * Sets or unsets the page in equalSplit mode.
 		 * @param {boolean}[bState] Determines if the page is set to equalSplit mode
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @override
 		 * @public
 		 */
@@ -321,8 +325,8 @@ sap.ui.define([
 		/**
 		 * Adds a control to the side content area.
 		 * Only the side content part in the aggregation is re-rendered.
-		 * @param {object} oControl Object to be added in the aggregation
-		 * @returns {this} this pointer for chaining
+		 * @param {sap.ui.core.Control} oControl Object to be added in the aggregation
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @override
 		 * @public
 		 */
@@ -336,8 +340,8 @@ sap.ui.define([
 		/**
 		 * Adds a control to the main content area.
 		 * Only the main content part in the aggregation is re-rendered.
-		 * @param {object} oControl Object to be added in the aggregation
-		 * @returns {this} this pointer for chaining
+		 * @param {sap.ui.core.Control} oControl Object to be added in the aggregation
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @override
 		 * @public
 		 */
@@ -354,7 +358,7 @@ sap.ui.define([
 		 * This helper method is used to implement a button/switch for changing
 		 * between the main and side content areas.
 		 * Only works if the current breakpoint is "S".
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @public
 		 */
 		DynamicSideContent.prototype.toggle = function () {
@@ -459,41 +463,50 @@ sap.ui.define([
 		/**
 		 * Returns a scroll helper object used to handle scrolling.
 		 * @public
-		 * @param {object} oControl The control instance that requested the scroll helper
+		 * @param {sap.ui.core.Control} oControl The control instance that requested the scroll helper
 		 * @returns {sap.ui.core.delegate.ScrollEnablement} The scroll helper instance
 		 * @since 1.78
 		 */
 		DynamicSideContent.prototype.getScrollDelegate = function (oControl) {
-			var oControlInQuestion = oControl,
-				oContainerOfDSC = this.getParent(),
-				sBreakpoint = this._getBreakPointFromWidth(),
+			var oContainerOfDSC = this.getParent(),
+				oControlParent = oControl.getParent(),
+				sParentAggregation = oControl.sParentAggregationName,
 				bMCVisible = this.getShowMainContent() && this._MCVisible,
 				bSCVisible = this.getShowSideContent() && this._SCVisible;
 
-			//for cases with main and side content - one above the other - use the scroll delegate of the parent container
-			if (sBreakpoint && sBreakpoint !== L && sBreakpoint !== XL ) {
-				// check whether the control is in visible aggregation; if not - don't get its scrollDelegate
-				if (oControlInQuestion &&
-					((oControlInQuestion.sParentAggregationName === "sideContent" && !bSCVisible) ||
-						(oControlInQuestion.sParentAggregationName === "mainContent" && !bMCVisible)) ){
-					return;
-				} else {
-					while (oContainerOfDSC && (!oContainerOfDSC.getScrollDelegate || !oContainerOfDSC.getScrollDelegate())) {
-						oContainerOfDSC = oContainerOfDSC.getParent();
-					}
+			// Find aggregation in which effectively is placed the oControl even if it is not directly placed in main or side content
+			while (oControlParent && oControlParent.getId() !== this.getId()) {
+				sParentAggregation = oControlParent.sParentAggregationName;
+				oControlParent = oControlParent.getParent();
+			}
+
+			// for cases with main and side content - one above the other - use the scroll delegate of the parent container
+			// otherwise use the scroll delegate of the container where the control is placed
+
+			if (!oControl) {
+				return;
+			} else if ((sParentAggregation === "sideContent" && !bSCVisible) || (sParentAggregation === "mainContent" && !bMCVisible)) {
+				return;
+			} else if (!this._isContentOnFullHeight(sParentAggregation)) {
+				while (oContainerOfDSC && (!oContainerOfDSC.getScrollDelegate || !oContainerOfDSC.getScrollDelegate())) {
+					oContainerOfDSC = oContainerOfDSC.getParent();
+				}
+				if (oContainerOfDSC) {
 					return oContainerOfDSC.getScrollDelegate();
 				}
 			}
 
+			this._initScrolling();
+
 			if (this._oMCScroller && this._oSCScroller) {
-				while (oControlInQuestion && oControlInQuestion.getId() !== this.getId()) {
-					if (oControlInQuestion.sParentAggregationName === "mainContent" && bMCVisible) {
+				while (oControl && oControl.getId() !== this.getId()) {
+					if (oControl.sParentAggregationName === "mainContent" && bMCVisible) {
 						return this._oMCScroller;
 					}
-					if (oControlInQuestion.sParentAggregationName === "sideContent" && bSCVisible) {
+					if (oControl.sParentAggregationName === "sideContent" && bSCVisible) {
 						return this._oSCScroller;
 					}
-					oControlInQuestion = oControlInQuestion.getParent();
+					oControl = oControl.getParent();
 				}
 			}
 
@@ -501,10 +514,27 @@ sap.ui.define([
 		};
 
 		/**
+		 * Determines whether the provided content aggregation (main or side) takes full height of the DynamicSideContent.
+		 * @private
+		 * @param {string} sContentName The name of the content aggregation
+		 * @returns {boolean} whether the content aggregation takes the full height
+		 */
+		DynamicSideContent.prototype._isContentOnFullHeight = function(sContentName) {
+			var	bMCVisible = this.getShowMainContent() && this._MCVisible,
+				bSCVisible = this.getShowSideContent() && this._SCVisible,
+				mcSpan = this.getProperty("mcSpan"),
+				scSpan = this.getProperty("scSpan"),
+				bMainContentOnFullHeight = (sContentName === "mainContent" && bMCVisible && ((mcSpan === SPAN_SIZE_12 && !bSCVisible) || mcSpan !== SPAN_SIZE_12)),
+				bSideContentOnFullHeight = (sContentName === "sideContent" && bSCVisible && ((scSpan === SPAN_SIZE_12 && !bMCVisible) || scSpan !== SPAN_SIZE_12));
+
+			return bMainContentOnFullHeight || bSideContentOnFullHeight;
+		};
+
+		/**
 		 * Re-renders only part of the control that is changed.
 		 * @param {object} aControls Array containing the passed aggregation controls
 		 * @param {object} $domElement DOM reference of the control to be re-rendered
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @private
 		 */
 		DynamicSideContent.prototype._rerenderControl = function (aControls, $domElement) {
@@ -567,7 +597,7 @@ sap.ui.define([
 		 * Gets the current breakpoint, related to the width, which is passed to the method.
 		 * @private
 		 * @param {int} iWidth The parent container width
-		 * @returns {String} Breakpoint corresponding to the width passed
+		 * @returns {string} Breakpoint corresponding to the width passed
 		 */
 		DynamicSideContent.prototype._getBreakPointFromWidth = function (iWidth) {
 			if (iWidth <= S_M_BREAKPOINT && this._currentBreakpoint !== S) {
@@ -620,7 +650,7 @@ sap.ui.define([
 		 * control mode.
 		 * @param {string} sSizeName Possible values S, M, L, XL
 		 * @param {boolean} bComparison Checks if the page is in equalSplit mode
-		 * @returns {this} this pointer for chaining
+		 * @returns {this} Reference to <code>this</code> for method chaining
 		 * @private
 		 */
 		DynamicSideContent.prototype._setResizeData = function (sSizeName, bComparison) {
@@ -695,7 +725,7 @@ sap.ui.define([
 		/**
 		 * Determines if the control sets height, based on the control state.
 		 * @private
-		 * @return {boolean} If the control sets height
+		 * @returns {boolean} If the control sets height
 		 */
 		DynamicSideContent.prototype._shouldSetHeight = function () {
 			var bSameLine,

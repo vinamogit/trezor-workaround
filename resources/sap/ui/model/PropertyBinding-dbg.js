@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /*eslint-disable max-len */
@@ -37,6 +37,16 @@ sap.ui.define([
 
 		constructor : function (oModel, sPath, oContext, mParameters) {
 			Binding.apply(this, arguments);
+			// The formatter providing the external representation of this binding's value
+			this.fnFormatter = undefined;
+			// The internal type of this binding, cf. #setType and
+			// sap.ui.base.ManagedObject.PropertyBindingInfo.targetType
+			this.sInternalType = undefined;
+			// The binding's sap.ui.model.BindingMode, cf. #setBindingMode and
+			// sap.ui.base.ManagedObject.PropertyBindingInfo.mode
+			this.sMode = undefined;
+			// The binding's sap.ui.model.SimpleType, cf. #setType
+			this.oType = undefined;
 		},
 		metadata : {
 			"abstract" : true,

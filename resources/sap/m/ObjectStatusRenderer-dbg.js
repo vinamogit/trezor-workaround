@@ -1,11 +1,11 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
-sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupport', 'sap/ui/core/InvisibleText', 'sap/ui/core/library', './library', 'sap/ui/core/Core'],
-	function(ValueStateSupport, IndicationColorSupport, InvisibleText, coreLibrary, library, Core) {
+sap.ui.define(['sap/ui/core/library', './library', 'sap/ui/core/Core'],
+	function(coreLibrary, library, oCore) {
 	"use strict";
 
 
@@ -16,7 +16,7 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 	var EmptyIndicatorMode = library.EmptyIndicatorMode;
 
 	// shortcut for library resource bundle
-	var oRb = Core.getLibraryResourceBundle("sap.m");
+	var oRb = oCore.getLibraryResourceBundle("sap.m");
 
 
 	/**
@@ -24,7 +24,7 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 	 * @namespace
 	 */
 	var ObjectStatusRenderer = {
-			apiVersion: 2
+		apiVersion: 2
 	};
 
 
@@ -32,9 +32,11 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 	 * Renders the HTML for the given control, using the provided {@link sap.ui.core.RenderManager}.
 	 *
 	 * @param {sap.ui.core.RenderManager} oRm The RenderManager that can be used for writing to the render output buffer
-	 * @param {sap.ui.core.Control} oObjStatus An object representation of the control that should be rendered
+	 * @param {sap.m.ObjectStatus} oObjStatus An object representation of the control that should be rendered
 	 */
 	ObjectStatusRenderer.render = function(oRm, oObjStatus){
+		var sStatusTextId;
+
 		oRm.openStart("div", oObjStatus);
 
 		if (oObjStatus._isEmpty() && oObjStatus.getEmptyIndicatorMode() === EmptyIndicatorMode.Off) {
@@ -46,11 +48,8 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 				sStateText = oObjStatus._getStateText(sState),
 				bInverted = oObjStatus.getInverted(),
 				sTextDir = oObjStatus.getTextDirection(),
-				oCore = sap.ui.getCore(),
 				bPageRTL = oCore.getConfiguration().getRTL(),
-				oAccAttributes = {
-					roledescription: oCore.getLibraryResourceBundle("sap.m").getText("OBJECT_STATUS")
-				},
+				oAccAttributes = {},
 				sTooltip = oObjStatus.getTooltip_AsString();
 
 			if (sTextDir === TextDirection.Inherit) {
@@ -71,8 +70,7 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 				oRm.class("sapMObjStatusActive");
 				oRm.attr("tabindex", "0");
 				oAccAttributes.role = "button";
-			} else {
-				oAccAttributes.role = "group";
+				oAccAttributes.roledescription = oCore.getLibraryResourceBundle("sap.m").getText("OBJECT_STATUS_ACTIVE");
 			}
 
 			var bTooltipAndAriaDescribedBy = sTooltip && oObjStatus.getAriaDescribedBy().length,
@@ -80,6 +78,25 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 			if (bTooltipAndAriaDescribedBy) {
 				sTooltipId = oObjStatus.getId() + "-tooltip";
 				oAccAttributes["describedby"] = { value: sTooltipId, append: true };
+			}
+
+			if (oObjStatus._hasExternalLabelling()) {
+				oAccAttributes["labelledby"] = {
+					value: oObjStatus._generateSelfLabellingIds(),
+					append: true
+				};
+			}
+
+			if (sStateText) {
+				sStatusTextId = oObjStatus._fnInvisibleStateLabelFactory().getId();
+				if (oAccAttributes["describedby"]) {
+					oAccAttributes["describedby"].value += " " + sStatusTextId;
+				} else {
+					oAccAttributes["describedby"] = {
+						value: sStatusTextId,
+						append: true
+					};
+				}
 			}
 
 			oRm.accessibilityState(oObjStatus, oAccAttributes);
@@ -103,7 +120,7 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 					oRm.attr("dir", sTextDir.toLowerCase());
 				}
 
-				oRm.attr("data-colon", Core.getLibraryResourceBundle("sap.m").getText("LABEL_COLON"));
+				oRm.attr("data-colon", oCore.getLibraryResourceBundle("sap.m").getText("LABEL_COLON"));
 
 				oRm.openEnd();
 				oRm.text(oObjStatus.getTitle());
@@ -145,15 +162,6 @@ sap.ui.define(['sap/ui/core/ValueStateSupport', 'sap/ui/core/IndicationColorSupp
 			if (oObjStatus._isActive()) {
 				oRm.close("span");
 			}
-
-			if (sStateText) {
-				oRm.openStart("span", oObjStatus.getId() + "-state");
-				oRm.class("sapUiPseudoInvisibleText");
-				oRm.openEnd();
-				oRm.text(sStateText);
-				oRm.close("span");
-			}
-
 		}
 
 		oRm.close("div");

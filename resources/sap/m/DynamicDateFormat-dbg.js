@@ -1,22 +1,22 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
 // Provides class sap.m.DynamicDateFormat
 sap.ui.define([
+	'sap/ui/core/date/UI5Date',
 	'sap/ui/core/format/DateFormat',
 	'sap/ui/core/format/NumberFormat',
 	'sap/ui/core/Locale',
 	'sap/ui/core/LocaleData',
-	"sap/base/Log",
 	"sap/base/util/deepExtend",
-	"sap/base/util/isEmptyObject",
-	"sap/ui/core/date/UniversalDateUtils",
-	"./library"
+	"sap/ui/unified/calendar/CalendarUtils",
+	"./library",
+	"sap/ui/core/Configuration"
 ],
-	function(DateFormat, NumberFormat, Locale, LocaleData, Log, deepExtend, isEmptyObject, UniversalDateUtils, library) {
+	function(UI5Date, DateFormat, NumberFormat, Locale, LocaleData, deepExtend, CalendarUtils, library, Configuration) {
 		"use strict";
 
 		/**
@@ -29,7 +29,6 @@ sap.ui.define([
 		 * @public
 		 * @hideconstructor
 		 * @alias sap.m.DynamicDateFormat
-		 * @experimental Since 1.92. This class is experimental and provides only limited functionality. Also the API might be changed in future.
 		 */
 		var DynamicDateFormat = function() {
 			// Do not use the constructor
@@ -41,12 +40,18 @@ sap.ui.define([
 		var _dynamicParameterIndexes = {};
 		var aParameterTypesByStandardOptionKey = {
 			"DATE": ["date"],
+			"DATETIME": ["datetime"],
 			"DATERANGE": ["date", "date"],
+			"DATETIMERANGE": ["datetime", "datetime"],
+			"LASTMINUTES": ["int"],
+			"LASTHOURS": ["int"],
 			"LASTDAYS": ["int"],
 			"LASTWEEKS": ["int"],
 			"LASTMONTHS": ["int"],
 			"LASTQUARTERS": ["int"],
 			"LASTYEARS": ["int"],
+			"NEXTMINUTES": ["int"],
+			"NEXTHOURS": ["int"],
 			"NEXTDAYS": ["int"],
 			"NEXTWEEKS": ["int"],
 			"NEXTMONTHS": ["int"],
@@ -54,7 +59,10 @@ sap.ui.define([
 			"NEXTYEARS": ["int"],
 			"FROM": ["date"],
 			"TO": ["date"],
+			"FROMDATETIME": ["datetime"],
+			"TODATETIME": ["datetime"],
 			"SPECIFICMONTH": ["month"],
+			"SPECIFICMONTHINYEAR": ["month", "int"],
 			"TODAYFROMTO": ["int", "int"]
 		};
 		var aStandardDynamicDateRangeKeysArray = Object.keys(library.StandardDynamicDateRangeKeys);
@@ -95,10 +103,23 @@ sap.ui.define([
 		}
 
 		/**
+		 * @typedef {object} sap.m.DynamicDateFormatOptions
+		 * @description Object which defines the format options
+		 *
+		 * @param {sap.ui.core.Locale} [oFormatOptions.oLocale] Formatter locale
+		 * @param {sap.ui.core.LocaleData} [oFormatOptions.oLocaleData] Locale-specific data, such as, date formats, number formats, and currencies
+		 * @param {Object<string, object>} [oFormatOptions.oOriginalFormatOptions] Default format options
+		 *
+		 * @public
+		 * @since 1.111
+		 */
+
+		/**
 		 * Get an instance of the DynamicDateFormat which can be used for formatting.
 		 *
-		 * @param {object} [oFormatOptions] Object which defines the format options
+		 * @param {sap.m.DynamicDateFormatOptions} [oFormatOptions] Object which defines the format options
 		 * @param {sap.ui.core.Locale} [oLocale] Locale to get the formatter for
+		 * @ui5-omissible-params oFormatOptions
 		 * @return {sap.m.DynamicDateFormat} Instance of the DynamicDateFormat
 		 * @public
 		 *
@@ -109,15 +130,17 @@ sap.ui.define([
 
 		DynamicDateFormat.oDefaultDynamicDateFormat = {
 			"date": {},
+			"datetime": {},
 			"month": { pattern: "MMMM" },
+			"year": { pattern: "yyyy" },
 			"int": {}
 		};
 
 		/**
 		 * Create an instance of the DynamicDateFormat.
 		 *
-		 * @param {object} [oFormatOptions] Object which defines the format options
-		 * @param {{sap.ui.core.Locale}} [oLocale] Locale to get the formatter for
+		 * @param {sap.m.DynamicDateFormatOptions} [oFormatOptions] Object which defines the format options
+		 * @param {sap.ui.core.Locale} [oLocale] Locale to get the formatter for
 		 * @return {sap.m.DynamicDateFormat} Instance of the DynamicDateFormat
 		 * @private
 		 */
@@ -130,12 +153,13 @@ sap.ui.define([
 			}
 
 			if (!oLocale) {
-				oLocale = sap.ui.getCore().getConfiguration().getFormatSettings().getFormatLocale();
+				oLocale = Configuration.getFormatSettings().getFormatLocale();
 			}
 			oFormat.oLocale = oLocale;
 			oFormat.oLocaleData = LocaleData.getInstance(oLocale);
 			oFormat.oOriginalFormatOptions = deepExtend({}, DynamicDateFormat.oDefaultDynamicDateFormat, oFormatOptions);
 			oFormat._dateFormatter = DateFormat.getInstance(oFormat.oOriginalFormatOptions["date"]);
+			oFormat._dateTimeFormatter = DateFormat.getDateTimeInstance(oFormat.oOriginalFormatOptions["datetime"]);
 			// hack the date formatter not to parse relative
 			// dates like: "next month", "next quarter", "previous week"
 			[oFormat._dateFormatter].concat(oFormat._dateFormatter.aFallbackFormats).forEach(function(f) {
@@ -144,7 +168,14 @@ sap.ui.define([
 				};
 			});
 
+			[oFormat._dateTimeFormatter].concat(oFormat._dateTimeFormatter.aFallbackFormats).forEach(function(f) {
+				f.parseRelative = function() {
+					return null;
+				};
+			});
+
 			oFormat._monthFormatter = DateFormat.getInstance(oFormat.oOriginalFormatOptions["month"]);
+			oFormat._yearFormatter = DateFormat.getInstance(oFormat.oOriginalFormatOptions["year"]);
 			oFormat._numberFormatter = NumberFormat.getInstance(oFormat.oOriginalFormatOptions["int"]);
 			oFormat._resourceBundle = sap.ui.getCore().getLibraryResourceBundle("sap.m");
 
@@ -154,40 +185,78 @@ sap.ui.define([
 		/**
 		 * Formats a list according to the given format options.
 		 *
-		 * @param {object} oObj The value to format
+		 * @param {sap.m.DynamicDateRangeValue} oObj The value to format
+		 * @param {boolean} bSkipCustomFormatting If set to <code>true</code> the formatter does not format to the equivalent user-friendly string. Instead, the formatter uses the specified option key and parameters.
 		 * @return {string} The formatted output value.
 		 * @public
 		 */
-		DynamicDateFormat.prototype.format = function(oObj) {
-			var sKey = oObj.operator;
-			var aParams = oObj.values.slice(0);
+		DynamicDateFormat.prototype.format = function(oObj, bSkipCustomFormatting) {
+			var sKey = oObj.operator,
+				aParams = oObj.values.slice(0);
 
 			if (sKey === "SPECIFICMONTH") {
-				var oDate = new Date();
+				var oDate = UI5Date.getInstance();
 				oDate.setMonth(aParams[0]);
 				aParams[0] = this._monthFormatter.format(oDate);
-			} else if (sKey === "LASTDAYS" && aParams[0] === 1) {
+			} else if (sKey === "SPECIFICMONTHINYEAR") {
+				var oDate = UI5Date.getInstance();
+
+				oDate.setMonth(aParams[0]);
+				oDate.setYear(aParams[1]);
+
+				aParams[0] = this._monthFormatter.format(oDate);
+				aParams[1] = this._yearFormatter.format(oDate);
+			} else if (sKey === "LASTDAYS" && aParams[0] === 1 && !bSkipCustomFormatting) {
 				sKey = "YESTERDAY";
 				aParams = [];
-			} else if (sKey === "NEXTDAYS" && aParams[0] === 1) {
+			} else if (sKey === "NEXTDAYS" && aParams[0] === 1 && !bSkipCustomFormatting) {
 				sKey = "TOMORROW";
 				aParams = [];
 			} else if ((sKey === "LASTDAYS" || sKey === "NEXTDAYS") && aParams[0] === 0) {
 				sKey = "TODAY";
 				aParams = [];
+			} else if (sKey === "DATETIME") {
+				aParams[0] = this._dateTimeFormatter.format(oObj.values[0]);
+			} else if (sKey === "TODAYFROMTO") {
+				aParams[0] = -aParams[0];
+				if (aParams[0] > aParams[1]) {
+					// swap two values because first one is bigger than second one
+					aParams = [aParams[1], aParams[0]];
+				}
 			}
 
 			var aFormattedParams = aParams.map(function(param) {
-				if (param instanceof Date) {
-					return this._dateFormatter.format(param);
+				var oParamValue = param;
+				if (param.getJSDate) {
+					oParamValue = param.getJSDate();
+				}
+				if (oParamValue instanceof Date) {
+					if (sKey === "DATETIMERANGE" || sKey === "FROMDATETIME" || sKey === "TODATETIME" || sKey === "DATETIME") {
+						return this._dateTimeFormatter.format(oParamValue);
+					}
+					return this._dateFormatter.format(oParamValue);
 				}
 
-				if (typeof (param) === "number") {
-					return this._numberFormatter.format(param);
+				if (typeof (oParamValue) === "number") {
+					return this._numberFormatter.format(oParamValue);
 				} else {
-					return param.toString();
+					return oParamValue.toString();
 				}
 			}, this);
+
+			if (sKey === 'TODAYFROMTO') {
+				aFormattedParams.forEach(function(item, index, arr) {
+					if (item === "0") {
+						arr[index] = (index === 0 ? this.oLocaleData.getNumberSymbol("minusSign") : this.oLocaleData.getNumberSymbol("plusSign")) + item;
+					} else {
+						arr[index] = aParams[index] < 0 ? item.toString() : this.oLocaleData.getNumberSymbol("plusSign") + item;
+					}
+				}, this);
+			}
+
+			if (aFormattedParams.length === 0) {
+				aFormattedParams = null;
+			}
 
 			return this._resourceBundle.getText("DYNAMIC_DATE_" + sKey.toUpperCase() + "_FORMAT", aFormattedParams);
 		};
@@ -196,21 +265,16 @@ sap.ui.define([
 		 * Parses a given list string into an array.
 		 *
 		 * @param {string} sValue String value to be parsed
-		 * @return {object} The parsed output value
+		 * @param {string} sKey String value of the key we will parse for
+		 * @return {sap.m.DynamicDateRangeValue[]} The parsed output value
 		 * @public
 		 */
 		DynamicDateFormat.prototype.parse = function(sValue, sKey) {
-			var aResult;
-			var aStaticParts = _staticParts[sKey];
-
-			var sRegexPattern = "^" + aStaticParts.join("(.*)") + "$";
-
-			if (sKey === "TODAYFROMTO") {
-				sRegexPattern = sRegexPattern.replace("+", "\\+");
-			}
-
-			var rRegex = new RegExp(sRegexPattern, "i");
-			var match = sValue.match(rRegex);
+			var aResult,
+				aStaticParts = _staticParts[sKey],
+				sRegexPattern = "^" + aStaticParts.join("(.*)") + "$",
+				rRegex = new RegExp(sRegexPattern, "i"),
+				match = sValue.match(rRegex);
 
 			if (match) {
 				aResult = {};
@@ -227,9 +291,12 @@ sap.ui.define([
 						case "date":
 							oVal = this._dateFormatter.parse(sCurrentMatch);
 							break;
+						case "datetime":
+							oVal = this._dateTimeFormatter.parse(sCurrentMatch);
+							break;
 						case "month":
 							var aMonthNames = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(function(i) {
-								var oDate = new Date();
+								var oDate = UI5Date.getInstance();
 								oDate.setMonth(i);
 								return this._monthFormatter.format(oDate);
 							}, this);
@@ -246,12 +313,29 @@ sap.ui.define([
 							break;
 					}
 
-					if (!oVal) {
+					if (oVal && (sType === "date" || sType === "datetime")) {
+						// for date/datetime types, if year is outside the allowed range [1-9999], return null as invalid result
+						try {
+							CalendarUtils._checkYearInValidRange(oVal.getFullYear());
+						} catch (e) {
+							oVal = null;
+						}
+					}
+
+					if (!oVal && oVal !== 0) {
 						aResult = null;
 						break;
 					}
 
 					aResult.values[iIndex] = oVal;
+				}
+
+				if (sKey === "TODAYFROMTO" && aResult) {
+					if (aResult.values[0] > aResult.values[1]) {
+						// swap two values because first one is bigger than second one
+						aResult.values = [aResult.values[1], aResult.values[0]];
+					}
+					aResult.values[0] = -aResult.values[0];
 				}
 
 				if (aResult) {

@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 
@@ -17,7 +17,8 @@ sap.ui.define([
 	'sap/m/Link',
 	'sap/ui/core/HTML',
 	'sap/ui/core/Title',
-	"sap/ui/thirdparty/jquery"
+	"sap/ui/thirdparty/jquery",
+   'sap/ui/core/date/UI5Date'
 ],
     function(
 		ManagedObject,
@@ -32,7 +33,8 @@ sap.ui.define([
 	   Link,
 	   HTML,
 	   Title,
-	   jQuery
+	   jQuery,
+      UI5Date
 	) {
        'use strict';
 
@@ -852,8 +854,6 @@ sap.ui.define([
 
              simpleForm = new SimpleForm({
                 maxContainerCols: 2,
-                minWidth: 400,
-                labelMinWidth: 100,
                 editable: false,
                 layout: "ResponsiveGridLayout",
                 labelSpanM: 3,
@@ -986,8 +986,6 @@ sap.ui.define([
 
              simpleForm = new SimpleForm({
                 maxContainerCols: 2,
-                minWidth: 400,
-                labelMinWidth: 100,
                 editable: false,
                 layout: "ResponsiveGridLayout",
                 labelSpanM: 7,
@@ -1089,7 +1087,7 @@ sap.ui.define([
 
        InteractionTree.prototype.formatTime = function (now) {
 
-          var oNow = new Date(now);
+          var oNow = UI5Date.getInstance(now);
 
           return this.pad0(oNow.getHours(), 2) + ":" + this.pad0(oNow.getMinutes(), 2) + ":" + this.pad0(oNow.getSeconds(), 2) + "." + this.pad0(oNow.getMilliseconds(), 3);
        };

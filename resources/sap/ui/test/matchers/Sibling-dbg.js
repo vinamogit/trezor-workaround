@@ -1,6 +1,6 @@
 /*!
  * OpenUI5
- * (c) Copyright 2009-2022 SAP SE or an SAP affiliate company.
+ * (c) Copyright 2009-2023 SAP SE or an SAP affiliate company.
  * Licensed under the Apache License, Version 2.0 - see LICENSE.txt.
  */
 /* eslint-disable no-loop-func */
@@ -21,6 +21,7 @@ sap.ui.define([
 	 *     sibling: "object" // where "object" is a declarative matcher for the sibling
 	 * }
 	 * </code></pre>
+	 * The declarative matcher for Sibling does not support <b>oOptions</b> parameters.
 	 *
 	 * @param {object|string} vSibling the sibling control to check. Can be a control or a control ID. If undefined, the result will always be true.
 	 * @param {object} [oOptions] specifies how to match
@@ -46,7 +47,7 @@ sap.ui.define([
 				// declarative matchers:
 				// sibling is already resolved by opa or controlfinder - here we deal only with the id
 				var oAppWindow = oMatcher._getApplicationWindow();
-				oSiblingControl = oAppWindow.sap.ui.getCore().byId(vSibling);
+				oSiblingControl = oAppWindow.sap.ui.require("sap/ui/core/Core").byId(vSibling);
 			} else {
 				oSiblingControl = vSibling;
 			}
