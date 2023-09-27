@@ -1,10 +1,10 @@
-specVersion: '2.6'
+specVersion: '3.1'
 metadata:
   name: trezor-workaround
 type: application
 framework:
   name: SAPUI5
-  version: "1.98.0"
+  version: "1.118.0"
   libraries:
     - name: sap.f
     - name: sap.m
