@@ -189,7 +189,7 @@ sap.ui.define([
 				}));
 			});
 
-			var transaction = txBuilder.setTimeout(StellarSdk.TimeoutInfinite).build();
+			var transaction = txBuilder.setTimeout(3600).build();
 			return {
 				hash: transaction.hash(),
 				xdr: transaction.toXDR()
